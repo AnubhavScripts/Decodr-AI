@@ -1,0 +1,27 @@
+# Core
+fastapi[standard]>=0.115.0
+uvicorn[standard]>=0.34.0
+sqlalchemy[asyncio]>=2.0.36
+asyncpg>=0.30.0
+pgvector>=0.3.6
+pydantic>=2.10.0
+pydantic-settings>=2.7.0
+python-dotenv>=1.0.1
+
+# AI / ML
+langchain>=0.3.14
+langchain-core>=0.3.30
+langchain-google-genai>=2.0.0
+langchain-text-splitters>=0.3.4
+langgraph>=0.2.60
+sentence-transformers>=3.3.0
+
+# Video & Transcript
+youtube-transcript-api>=0.6.3
+yt-dlp>=2024.12.0
+faster-whisper>=1.1.0
+
+# Utilities
+httpx>=0.28.0
+python-multipart>=0.0.20
+numpy>=1.26.0
