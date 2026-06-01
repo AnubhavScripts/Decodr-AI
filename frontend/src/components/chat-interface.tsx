@@ -90,11 +90,11 @@ export default function ChatInterface({
   };
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="w-full flex flex-col gap-6">
 
-      {/* ── Chat Header (only when active) ── */}
+      {/* Thread Actions Header (only when messages exist) */}
       {messages.length > 0 && (
-        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-white shrink-0 select-none">
+        <div className="flex items-center justify-between py-2 border-b border-gray-100 bg-transparent shrink-0 select-none">
           <span className="text-[10px] font-extrabold text-violet-600 bg-violet-50 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
             Active Session
           </span>
@@ -108,233 +108,223 @@ export default function ChatInterface({
         </div>
       )}
 
-      {/* ── Messages Area ── */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin flex flex-col min-h-0 px-6 py-6">
-        {messages.length === 0 ? (
-
-          /* ── Empty State ── */
-          <div className="flex-1 flex flex-col items-center justify-center px-6 py-10">
-            <div className="flex flex-col items-center w-full text-center">
-
-              {/* Icon */}
-              <div
-                className="w-12 h-12 rounded-2xl flex items-center justify-center mb-4 shadow-sm"
-                style={{ background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)" }}
-              >
-                <Sparkles className="w-6 h-6 text-white" />
-              </div>
-
-              {/* Heading */}
-              <h3 className="text-base font-extrabold text-gray-900 mb-2 tracking-tight">
-                Ask Anything About These Videos
-              </h3>
-              <p className="text-sm text-gray-500 mb-7 leading-relaxed font-medium max-w-sm">
-                Query hooks, pacing, transcripts, engagement metrics, and content strategy — backed by direct transcript citations.
-              </p>
-
-              {/* Suggestion chips */}
-              <div className="flex flex-col gap-2 w-full px-4">
-                {SUGGESTED_QUESTIONS.map((q) => (
-                  <button
-                    key={q}
-                    onClick={() => handleSuggestion(q)}
-                    className="group text-sm text-left px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-700 hover:border-violet-300 hover:text-violet-700 hover:bg-violet-50/30 transition-all flex items-center justify-between gap-3 font-semibold shadow-xs"
-                  >
-                    <span className="line-clamp-1">{q}</span>
-                    <ChevronRight className="w-4 h-4 shrink-0 text-gray-300 group-hover:text-violet-500 group-hover:translate-x-0.5 transition-all" />
-                  </button>
-                ))}
-              </div>
-
-            </div>
+      {/* Thread Container */}
+      {messages.length === 0 ? (
+        <div className="w-full flex flex-col items-center justify-center py-16 px-6 bg-white border border-gray-200/80 rounded-2xl shadow-xs">
+          
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-4 bg-gradient-to-br from-violet-600 to-indigo-600 flex-shrink-0 shadow-sm">
+            <Sparkles className="w-6 h-6 text-white" />
           </div>
 
-        ) : (
+          <h3 className="text-[15px] font-extrabold text-gray-900 mb-1.5 text-center">
+            Ask Anything About These Videos
+          </h3>
+          <p className="text-xs text-gray-400 mb-6 text-center max-w-[340px] leading-relaxed font-semibold">
+            Query hooks, pacing, transcripts, engagement metrics, and content strategy — backed by direct transcript citations.
+          </p>
 
-          /* ── Active Chat Thread ── */
-          <div className="px-5 py-5 space-y-5">
-            {messages.map((msg, index) => {
-              if (msg.role === "user") {
-                return (
-                  <React.Fragment key={msg.id || index}>
-                    {/* User bubble — full width */}
-                    <div className="w-full bg-violet-700 text-white rounded-2xl px-5 py-3.5 text-sm font-semibold leading-relaxed animate-fade-in">
+          {/* Suggested question chips */}
+          <div className="w-full max-w-[480px] flex flex-col gap-2.5">
+            {SUGGESTED_QUESTIONS.map((q) => (
+              <button
+                key={q}
+                onClick={() => handleSuggestion(q)}
+                className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-white text-xs font-bold text-gray-600 hover:border-violet-300 hover:bg-violet-50/20 hover:text-violet-750 transition-all cursor-pointer text-left shadow-2xs"
+              >
+                <span className="truncate">{q}</span>
+                <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
+              </button>
+            ))}
+          </div>
+
+        </div>
+      ) : (
+        <div className="w-full flex flex-col gap-6">
+          {messages.map((msg, index) => {
+            if (msg.role === "user") {
+              return (
+                <React.Fragment key={msg.id || index}>
+                  {/* Right-aligned vibrant User speech bubble */}
+                  <div className="flex justify-end w-full">
+                    <div className="bg-[#4f46e5] text-white rounded-2xl px-5 py-3.5 shadow-sm text-sm font-semibold max-w-[85%] leading-relaxed select-all">
                       {msg.content}
                     </div>
+                  </div>
 
-                    {/* Streaming status pill */}
-                    {isStreaming && index === messages.length - 1 && (
-                      <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-full text-[10px] font-extrabold uppercase tracking-widest text-gray-500 animate-pulse w-fit">
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-violet-600" />
-                        <span>{statusMessage || "Retrieving transcript chunks..."}</span>
+                  {/* Active streaming loader */}
+                  {isStreaming && index === messages.length - 1 && (
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 select-none animate-pulse">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-violet-650" />
+                      <span>{statusMessage || "Retrieving transcript chunks..."}</span>
+                    </div>
+                  )}
+                </React.Fragment>
+              );
+            } else {
+              return (
+                <div key={msg.id || index} className="w-full animate-fade-in">
+                  <div className="w-full bg-white border border-gray-200/80 rounded-2xl shadow-xs p-6 flex flex-col gap-5">
+                    
+                    {/* 1. Reasoning section */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1.5 text-[9px] font-extrabold text-gray-450 uppercase tracking-widest select-none">
+                        <span>⚙</span> REASONING
                       </div>
-                    )}
-                  </React.Fragment>
-                );
-              } else {
-                return (
-                  <div key={msg.id || index} className="w-full animate-fade-in">
+                      <p className="text-xs text-gray-600 leading-relaxed font-semibold">
+                        {msg.isStreaming && !msg.content ? (
+                          <span className="flex items-center gap-1.5 text-violet-650 animate-pulse">
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            Analyzing hook pacing and semantic vector alignments...
+                          </span>
+                        ) : (
+                          "Analyzing the first 10 seconds of both transcripts and visual pacing data. Video A immediately addresses a common viewer pain point, while Video B spends 8 seconds on a branded intro sequence."
+                        )}
+                      </p>
+                    </div>
 
-                    {/* Unified assistant card */}
-                    <div className="w-full bg-white border border-gray-200/80 rounded-2xl shadow-xs overflow-hidden">
+                    <div className="border-t border-gray-100" />
 
-                      {/* Reasoning */}
-                      <div className="px-5 py-4 border-b border-gray-100">
-                        <div className="flex items-center gap-1.5 text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-2 select-none">
-                          <span>⚙</span> Reasoning
-                        </div>
-                        <p className="text-xs text-gray-600 leading-relaxed font-medium">
-                          {msg.isStreaming && !msg.content ? (
-                            <span className="flex items-center gap-1.5 text-violet-600 animate-pulse">
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                              Analyzing hook pacing and semantic vector alignments...
-                            </span>
-                          ) : (
-                            "Analyzing the first 10 seconds of both transcripts and visual pacing data. Video A immediately addresses a common viewer pain point, while Video B spends 8 seconds on a branded intro sequence."
-                          )}
-                        </p>
+                    {/* 2. Answer section */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-1.5 text-[9px] font-extrabold text-gray-450 uppercase tracking-widest select-none">
+                        <span>📋</span> Answer
+                        {msg.isStreaming && (
+                          <span className="ml-auto flex items-center gap-1 text-[8px] text-violet-650 bg-violet-50 px-2 py-0.5 rounded-full font-bold">
+                            <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                            Streaming
+                          </span>
+                        )}
                       </div>
-
-                      {/* Answer */}
-                      <div className="px-5 py-4">
-                        <div className="flex items-center gap-1.5 text-[9px] font-bold text-gray-400 uppercase tracking-widest pb-2.5 border-b border-gray-100 mb-3 select-none">
-                          <span>▤</span> Answer
-                          {msg.isStreaming && (
-                            <span className="ml-auto flex items-center gap-1 text-[8px] text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full font-bold">
-                              <Loader2 className="w-2.5 h-2.5 animate-spin" />
-                              Streaming
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="chat-markdown text-gray-800 text-sm leading-relaxed prose prose-violet max-w-none font-medium">
-                          {msg.content ? (
-                            <ReactMarkdown
-                              components={{
-                                p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
-                                li: ({ children }) => <li className="mb-1.5 last:mb-0 list-disc ml-4">{children}</li>,
-                                ul: ({ children }) => <ul className="mb-3 space-y-1">{children}</ul>,
-                                ol: ({ children }) => <ol className="mb-3 list-decimal ml-4 space-y-1">{children}</ol>,
-                                a: ({ href, children }) => (
-                                  <span className="inline-flex items-center mx-0.5 px-2 py-0.5 text-[10px] font-bold text-violet-700 bg-violet-100/80 rounded-lg pointer-events-none select-none">
-                                    {children}
-                                  </span>
-                                ),
-                              }}
-                            >
-                              {msg.content}
-                            </ReactMarkdown>
-                          ) : (
-                            <div className="flex gap-1 py-1 items-center">
-                              <span className="w-1.5 h-1.5 bg-violet-600 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                              <span className="w-1.5 h-1.5 bg-violet-600 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                              <span className="w-1.5 h-1.5 bg-violet-600 rounded-full animate-bounce" />
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Cited Evidence — inset inside the card */}
-                        {msg.citations && msg.citations.length > 0 && (
-                          <div className="mt-4 rounded-xl border border-gray-200/80 bg-slate-50 p-3.5 space-y-3">
-                            <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-400 pb-2 border-b border-gray-200/60 select-none">
-                              <span>▤</span> Cited Evidence
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              {msg.citations.slice(0, 2).map((cit, cIdx) => (
-                                <div
-                                  key={cIdx}
-                                  className="bg-white border border-gray-200/80 rounded-xl p-3 flex flex-col gap-2.5 shadow-xs"
-                                >
-                                  <p className="text-xs italic text-gray-600 leading-relaxed font-medium">
-                                    &ldquo;{cit.chunk_text_preview.trim()}...&rdquo;
-                                  </p>
-                                  <div className="inline-block bg-gray-50 border border-gray-200 rounded px-1.5 py-0.5 text-[9px] font-bold text-gray-400 w-fit font-mono">
-                                    {getMockTimestampForChunk(cit.chunk_number)}
-                                  </div>
-                                  <div className="text-[10px] font-extrabold text-violet-600 pt-1.5 border-t border-gray-100">
-                                    Video {cit.video_label} • {getMockTagsForVideo(cit.video_label, cit.chunk_number)}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
+                      
+                      <div className="chat-markdown text-gray-805 text-sm leading-relaxed prose prose-violet max-w-none font-semibold">
+                        {msg.content ? (
+                          <ReactMarkdown
+                            components={{
+                              p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
+                              li: ({ children }) => <li className="mb-1.5 last:mb-0 list-disc ml-4">{children}</li>,
+                              ul: ({ children }) => <ul className="mb-3 space-y-1">{children}</ul>,
+                              ol: ({ children }) => <ol className="mb-3 list-decimal ml-4 space-y-1">{children}</ol>,
+                              a: ({ href, children }) => (
+                                <span className="inline-flex items-center mx-0.5 px-2 py-0.5 text-[10px] font-bold text-violet-750 bg-violet-50 border border-violet-100 rounded-lg pointer-events-none select-none">
+                                  {children}
+                                </span>
+                              ),
+                            }}
+                          >
+                            {msg.content}
+                          </ReactMarkdown>
+                        ) : (
+                          <div className="flex gap-1 py-1 items-center">
+                            <span className="w-1.5 h-1.5 bg-violet-600 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                            <span className="w-1.5 h-1.5 bg-violet-600 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                            <span className="w-1.5 h-1.5 bg-violet-600 rounded-full animate-bounce" />
                           </div>
                         )}
                       </div>
-
                     </div>
+
+                    {/* 3. Cited Evidence quotes */}
+                    {msg.citations && msg.citations.length > 0 && (
+                      <div className="rounded-xl border border-gray-150 bg-slate-50/50 p-4 space-y-3.5">
+                        <div className="flex items-center gap-1.5 text-[9px] font-extrabold uppercase tracking-widest text-gray-400 pb-1.5 border-b border-gray-200/50 select-none">
+                          <span>▤</span> Cited Evidence
+                        </div>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                          {msg.citations.slice(0, 2).map((cit, cIdx) => (
+                            <div key={cIdx} className="bg-white border border-gray-150 rounded-xl p-3.5 flex flex-col gap-3 shadow-2xs">
+                              
+                              {/* Header quote with right-aligned timestamp pill */}
+                              <div className="flex justify-between items-start gap-2.5">
+                                <p className="text-xs italic text-gray-655 leading-relaxed font-semibold flex-1">
+                                  &ldquo;{cit.chunk_text_preview.trim()}...&rdquo;
+                                </p>
+                                <span className="shrink-0 bg-gray-50 border border-gray-200/60 rounded px-1.5 py-0.5 text-[9px] font-bold text-gray-400 font-mono select-none">
+                                  {getMockTimestampForChunk(cit.chunk_number)}
+                                </span>
+                              </div>
+
+                              {/* Footer video labeling */}
+                              <div className="text-[10px] font-extrabold text-[#4f46e5] pt-2 border-t border-gray-100 uppercase tracking-wider">
+                                Video {cit.video_label} • {getMockTagsForVideo(cit.video_label, cit.chunk_number)}
+                              </div>
+
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                   </div>
-                );
-              }
-            })}
+                </div>
+              );
+            }
+          })}
 
-            {/* Error */}
-            {error && (
-              <div className="flex items-start gap-2.5 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 animate-fade-in">
-                <span className="shrink-0 mt-0.5">⚠️</span>
-                <span>{error}</span>
-              </div>
-            )}
+          {error && (
+            <div className="flex items-start gap-2.5 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 font-semibold shadow-2xs">
+              <span className="shrink-0 mt-0.5">⚠️</span>
+              <span>{error}</span>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+      )}
 
-            <div ref={messagesEndRef} />
-          </div>
+      {/* ── Fixed Floating Bottom Chat Input Capsule ── */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-[#f8fafc] via-[#f8fafc]/95 to-transparent pt-10 pb-6 px-6 pointer-events-none flex justify-center">
+        <div className="w-full max-w-[850px] flex flex-col items-center pointer-events-auto">
+          <form onSubmit={handleSubmit} className="w-full bg-white border border-gray-200/95 rounded-2xl shadow-lg p-2.5 flex items-center gap-3.5">
+            
+            {/* Paperclip trigger */}
+            <button
+              type="button"
+              onClick={handleAttachment}
+              className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-50 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer shrink-0"
+              title="Attachment"
+            >
+              <Paperclip className="w-4.5 h-4.5" />
+            </button>
 
-        )}
-      </div>
-
-      {/* ── Input Bar ── */}
-      <div className="shrink-0 px-5 py-4 bg-white border-t border-gray-100 select-none">
-        <form onSubmit={handleSubmit} className="flex items-center gap-3">
-
-          {/* Attachment button */}
-          <button
-            type="button"
-            onClick={handleAttachment}
-            className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-50 border border-gray-200 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all shrink-0"
-          >
-            <Paperclip className="w-4 h-4" />
-          </button>
-
-          {/* Input */}
-          <div className="flex-1 flex items-center border border-gray-200 rounded-xl bg-white focus-within:border-violet-400 focus-within:ring-2 focus-within:ring-violet-500/10 transition-all px-4 py-2.5">
+            {/* Input field */}
             <input
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Ask about retention, hooks, pacing, or specific quotes..."
-              className="flex-1 bg-transparent outline-none text-xs text-gray-800 placeholder:text-gray-400 font-medium"
+              className="flex-1 bg-transparent outline-none text-xs text-gray-805 placeholder:text-gray-400 font-semibold"
               disabled={isStreaming}
               id="chat-input"
             />
-          </div>
 
-          {/* Send / Stop button */}
-          {isStreaming ? (
-            <button
-              type="button"
-              onClick={stopStreaming}
-              className="w-10 h-10 flex items-center justify-center rounded-xl bg-red-50 border border-red-200 text-red-500 hover:bg-red-100 transition-colors shrink-0"
-            >
-              <Square className="w-3.5 h-3.5 fill-red-500" />
-            </button>
-          ) : (
-            <button
-              type="submit"
-              disabled={!input.trim()}
-              className="w-10 h-10 flex items-center justify-center rounded-xl text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shrink-0"
-              style={{
-                background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
-              }}
-              id="chat-send"
-            >
-              <Send className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </form>
+            {/* Control buttons */}
+            {isStreaming ? (
+              <button
+                type="button"
+                onClick={stopStreaming}
+                className="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 hover:bg-red-100 text-red-500 border border-red-200 transition-colors cursor-pointer shrink-0"
+              >
+                <Square className="w-3.5 h-3.5" />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={!input.trim()}
+                className="w-9 h-9 flex items-center justify-center rounded-xl bg-[#4f46e5] hover:bg-indigo-750 text-white disabled:opacity-40 disabled:hover:bg-[#4f46e5] transition-all shadow-xs cursor-pointer shrink-0"
+                id="chat-send"
+              >
+                <Send className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </form>
 
-        <p className="text-[10px] text-center text-gray-400 mt-3 font-medium tracking-wide">
-          AI can make mistakes. Always verify claims against the transcript.
-        </p>
+          {/* AI Accuracy Warning */}
+          <p className="text-[9px] text-gray-405 mt-2.5 font-bold tracking-wide uppercase select-none">
+            AI can make mistakes. Always verify claims against the transcript.
+          </p>
+          
+        </div>
       </div>
 
     </div>

@@ -60,11 +60,11 @@ export default function Header() {
           : "bg-white/80 backdrop-blur-sm border-b border-transparent"
       }`}
     >
-      <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-3 h-[60px]">
+      <div className="max-w-[1400px] mx-auto flex items-center justify-between px-6 py-3 h-[60px]">
 
         {/* ── Logo ── */}
         <Link href="/" className="flex items-center gap-2 group shrink-0">
-          <div className="w-6 h-6 rounded bg-violet-600 flex items-center justify-center">
+          <div className="w-6 h-6 rounded bg-violet-650 flex items-center justify-center">
             <Zap className="w-3.5 h-3.5 text-white" />
           </div>
           <span className="text-base font-extrabold text-gray-900 tracking-tight">
@@ -72,8 +72,8 @@ export default function Header() {
           </span>
         </Link>
 
-        {/* ── Center: Nav or Search ── */}
-        {!isDashboard ? (
+        {/* ── Center: Nav (empty on dashboard to keep header clean) ── */}
+        {!isDashboard && (
           <nav className="hidden md:flex items-center gap-7">
             <a
               href="#features"
@@ -94,30 +94,6 @@ export default function Header() {
               Try It
             </a>
           </nav>
-        ) : (
-          <form
-            onSubmit={handleQuickAnalyze}
-            className="flex-1 max-w-md mx-6 hidden sm:block"
-          >
-            <div className="relative flex items-center bg-gray-50 border border-gray-250/70 rounded-xl px-3 py-1.5 focus-within:bg-white focus-within:border-violet-400 focus-within:ring-2 focus-within:ring-violet-500/10 transition-all">
-              <span className="text-gray-400 text-xs mr-2 select-none">🔗</span>
-              <input
-                type="text"
-                value={inputVal}
-                onChange={(e) => setInputVal(e.target.value)}
-                placeholder="https://youtube.com/v1 vs https://youtube.com/v2"
-                className="flex-1 bg-transparent outline-none text-xs text-gray-800 placeholder:text-gray-400 font-medium"
-                disabled={loading}
-              />
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-3.5 py-1 text-[10px] font-extrabold text-white bg-violet-650 rounded-lg hover:bg-violet-750 disabled:opacity-50 transition-colors ml-2 uppercase tracking-wide"
-              >
-                {loading ? "..." : "Analyze"}
-              </button>
-            </div>
-          </form>
         )}
 
         {/* ── Right Actions ── */}

@@ -20,7 +20,9 @@ export default function VideoComparison({ videos }: VideoComparisonProps) {
   return (
     <div className="flex flex-col md:flex-row items-center gap-4 w-full">
       <VideoCard video={videoA} label="A" />
-      <span className="text-sm font-bold text-gray-300 italic shrink-0 px-1 select-none">vs</span>
+      <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-[10px] font-extrabold text-gray-400 shrink-0 select-none shadow-xs">
+        VS
+      </div>
       <VideoCard video={videoB} label="B" />
     </div>
   );
@@ -36,7 +38,7 @@ function VideoCard({
   const [showTranscript, setShowTranscript] = useState(false);
 
   return (
-    <div className="flex-1 w-full bg-white border border-gray-200/85 rounded-2xl p-5 flex flex-col gap-5 shadow-xs relative">
+    <div className="flex-1 w-full min-w-0 bg-white border border-gray-200/85 rounded-2xl p-5 flex flex-col gap-5 shadow-xs relative">
       
       {/* Thumbnail + Info row */}
       <div className="flex flex-row gap-5 items-start">
@@ -56,7 +58,7 @@ function VideoCard({
         )}
 
         {/* Right: Meta & Metrics */}
-        <div className="min-w-0 flex-1 flex flex-col justify-between h-32">
+        <div className="min-w-0 flex-1 flex flex-col justify-between">
           <div>
             {/* Title with inline video/play icon */}
             <h3 className="text-sm font-extrabold text-gray-900 leading-snug line-clamp-1 flex items-center gap-1.5">

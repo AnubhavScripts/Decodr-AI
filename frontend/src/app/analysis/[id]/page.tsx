@@ -112,20 +112,38 @@ export default function AnalysisPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 text-gray-900 pt-[88px] pb-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 space-y-8">
+    <div className="min-h-screen text-gray-900 pb-32" style={{ backgroundColor: "#f8fafc" }}>
+      <div className="max-w-[1400px] mx-auto px-6 pt-6 space-y-6">
 
-        {/* ── Row 1: Video cards + Context sidebar ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        {/* ── Top Layout Grid: Videos + Insights vs Context Sidebar ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
-          {/* Video comparison (left 8 cols) */}
-          <div className="lg:col-span-8 flex items-center">
+          {/* Left Column (Video comparison + Insight cards) */}
+          <div className="lg:col-span-8 space-y-6">
             <VideoComparison videos={data.videos} />
+
+            {/* Insight cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {INSIGHT_CARDS.map((c) => (
+                <div
+                  key={c.title}
+                  className="bg-white border border-gray-200/80 rounded-2xl p-5 flex items-center gap-4 shadow-xs"
+                >
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${c.bg} border border-gray-100`}>
+                    {c.icon}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">{c.title}</p>
+                    <p className={`text-xs font-extrabold ${c.valueColor}`}>{c.value}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* Combined Context & Previously Discussed Sidebar (right 4 cols) */}
+          {/* Right Column (Combined Context & Previously Discussed Sidebar) */}
           <div className="lg:col-span-4">
-            <div className="bg-white border border-gray-200/80 rounded-2xl p-5 space-y-6 shadow-xs h-full">
+            <div className="bg-white border border-gray-200/80 rounded-2xl p-5 space-y-6 shadow-xs">
               
               {/* CURRENT CONTEXT */}
               <div className="space-y-2.5">
@@ -168,7 +186,7 @@ export default function AnalysisPage() {
                       <button
                         key={idx}
                         onClick={() => sendMessage(q.content)}
-                        className="inline-flex items-center gap-1 text-[11px] font-bold px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-gray-650 hover:bg-gray-50 hover:border-gray-300 active:bg-gray-100 transition-all cursor-pointer"
+                        className="inline-flex items-center gap-1 text-[11px] font-bold px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-gray-655 hover:bg-gray-50 hover:border-gray-300 active:bg-gray-100 transition-all cursor-pointer"
                       >
                         ⟲ {q.content.length > 15 ? q.content.slice(0, 15) + "..." : q.content}
                       </button>
@@ -181,33 +199,9 @@ export default function AnalysisPage() {
           </div>
         </div>
 
-        {/* ── Row 2: Insight cards ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-            {INSIGHT_CARDS.map((c) => (
-              <div
-                key={c.title}
-                className="bg-white border border-gray-200/80 rounded-2xl p-5 flex items-center gap-4 shadow-xs"
-              >
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${c.bg} border border-gray-100`}>
-                  {c.icon}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">{c.title}</p>
-                  <p className={`text-xs font-extrabold ${c.valueColor}`}>{c.value}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="lg:col-span-4" />
-        </div>
-
-        {/* ── Row 3: Chat Interface ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-          <div className="lg:col-span-8 border border-gray-200/80 rounded-2xl overflow-hidden flex flex-col bg-white shadow-xs" style={{ minHeight: "520px" }}>
-            <ChatInterface analysisId={analysisId} {...chatState} />
-          </div>
-          <div className="lg:col-span-4" /> {/* empty spacer to keep sidebar column alive */}
+        {/* ── Centered Integrated Chat Interface ── */}
+        <div className="max-w-[850px] mx-auto w-full pt-4">
+          <ChatInterface analysisId={analysisId} {...chatState} />
         </div>
 
       </div>
