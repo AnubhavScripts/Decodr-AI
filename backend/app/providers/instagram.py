@@ -52,7 +52,76 @@ class InstagramProvider(BaseVideoProvider):
     # ------------------------------------------------------------------ #
 
     async def extract_metadata(self, url: str) -> VideoMetadata:
-        """Extract Instagram video metadata using yt-dlp."""
+        """Extract Instagram video metadata; try instaloader first, fallback to yt-dlp."""
+        sc = _shortcode(url)
+        if sc:
+            try:
+                logger.info(f"Extracting Instagram metadata using instaloader for {url}")
+                meta = await asyncio.to_thread(self._instaloader_metadata, sc, url)
+                if meta:
+                    logger.info("Successfully extracted Instagram metadata using instaloader")
+                    return meta
+            except Exception as e:
+                logger.warning(f"Instaloader metadata extraction failed ({e}); falling back to yt-dlp")
+
+        # Fallback
+        logger.info(f"Extracting Instagram metadata using yt-dlp for {url}")
+        return await self._ytdlp_metadata(url)
+
+    def _instaloader_metadata(self, shortcode: str, url: str) -> VideoMetadata:
+        import instaloader
+        from datetime import timezone
+
+        L = instaloader.Instaloader(
+            download_pictures=False,
+            download_videos=False,
+            download_video_thumbnails=False,
+            download_geotags=False,
+            download_comments=False,
+            save_metadata=False,
+            quiet=True,
+        )
+
+        post = instaloader.Post.from_shortcode(L.context, shortcode)
+        
+        caption = post.caption or ""
+        title = caption[:150].strip() if caption else "Untitled"
+        if not title:
+            title = f"Instagram Video by {post.owner_username}"
+            
+        hashtags = list(set(re.findall(r"#(\w+)", caption)))[:20]
+
+        # Fetch profile info for creator & followers
+        follower_count = None
+        try:
+            profile = post.owner_profile
+            creator = profile.full_name or profile.username or post.owner_username or "Unknown"
+            follower_count = profile.followers
+        except Exception:
+            creator = post.owner_username or "Unknown"
+
+        # Make datetime timezone-aware
+        upload_date = post.date_utc
+        if upload_date:
+            upload_date = upload_date.replace(tzinfo=timezone.utc)
+
+        return VideoMetadata(
+            platform="instagram",
+            original_url=url,
+            title=title,
+            creator=creator,
+            follower_count=follower_count,
+            views=post.video_view_count or 0,
+            likes=post.likes or 0,
+            comments_count=post.comments or 0,
+            hashtags=hashtags,
+            upload_date=upload_date,
+            duration=float(post.video_duration or 0.0),
+            thumbnail_url=post.url,
+            video_url=post.video_url or url,
+        )
+
+    async def _ytdlp_metadata(self, url: str) -> VideoMetadata:
         import yt_dlp
 
         ydl_opts: dict = {

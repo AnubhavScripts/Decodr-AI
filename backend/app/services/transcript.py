@@ -91,6 +91,15 @@ class TranscriptService:
                 logger.error(f"Audio file not found at {audio_path}")
                 return ""
 
+            # Preflight: faster-whisper needs ffmpeg to decode mp4/webm/m4a etc.
+            import shutil
+            if not shutil.which("ffmpeg"):
+                logger.error(
+                    "ffmpeg is not installed — faster-whisper cannot decode audio files. "
+                    "Fix: brew install ffmpeg  (or apt install ffmpeg on Linux)"
+                )
+                return ""
+
             # Transcribe
             model = await _get_whisper_model()
 
