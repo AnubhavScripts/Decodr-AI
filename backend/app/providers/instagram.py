@@ -1,10 +1,21 @@
-"""Instagram video provider — metadata and audio via yt-dlp, no native transcript API."""
+"""Instagram video provider.
+
+Strategy:
+- Metadata  → yt-dlp (reads public info from Instagram's embed API)
+- Audio DL  → instaloader (fetches the signed video URL and downloads directly),
+              with yt-dlp as fallback
+- Transcript→ None (no native API; Whisper handles it upstream)
+"""
 
 import re
+import os
 import asyncio
 import logging
 import uuid
+import urllib.request
+from pathlib import Path
 from datetime import datetime
+
 from app.providers.base import BaseVideoProvider, VideoMetadata
 
 logger = logging.getLogger(__name__)
@@ -15,6 +26,20 @@ _IG_PATTERNS = [
     re.compile(r"(?:https?://)?(?:www\.)?instagram\.com/tv/[\w-]+"),
 ]
 
+_SHORTCODE_RE = re.compile(r"/(?:reel|p|tv)/([\w-]+)")
+
+
+def _shortcode(url: str) -> str | None:
+    m = _SHORTCODE_RE.search(url)
+    return m.group(1) if m else None
+
+
+def _cookies_path() -> str | None:
+    for p in ["cookies.txt", "backend/cookies.txt", "../cookies.txt"]:
+        if os.path.exists(p):
+            return p
+    return None
+
 
 class InstagramProvider(BaseVideoProvider):
 
@@ -22,15 +47,22 @@ class InstagramProvider(BaseVideoProvider):
     def can_handle(cls, url: str) -> bool:
         return any(p.search(url) for p in _IG_PATTERNS)
 
+    # ------------------------------------------------------------------ #
+    #  Metadata                                                            #
+    # ------------------------------------------------------------------ #
+
     async def extract_metadata(self, url: str) -> VideoMetadata:
-        """Use yt-dlp to extract Instagram video metadata."""
+        """Extract Instagram video metadata using yt-dlp."""
         import yt_dlp
 
-        ydl_opts = {
+        ydl_opts: dict = {
             "skip_download": True,
             "quiet": True,
             "no_warnings": True,
         }
+        cp = _cookies_path()
+        if cp:
+            ydl_opts["cookiefile"] = cp
 
         def _extract():
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -49,10 +81,8 @@ class InstagramProvider(BaseVideoProvider):
         elif isinstance(raw_date, (int, float)):
             upload_date = datetime.fromtimestamp(raw_date)
 
-        # Extract hashtags from description
         description = info.get("description", "") or ""
-        hashtags = re.findall(r"#(\w+)", description)
-        hashtags = list(set(hashtags))[:20]
+        hashtags = list(set(re.findall(r"#(\w+)", description)))[:20]
 
         return VideoMetadata(
             platform="instagram",
@@ -70,34 +100,94 @@ class InstagramProvider(BaseVideoProvider):
             video_url=info.get("webpage_url", url),
         )
 
+    # ------------------------------------------------------------------ #
+    #  Transcript                                                          #
+    # ------------------------------------------------------------------ #
+
     async def extract_transcript(self, url: str) -> str | None:
-        """Instagram has no native transcript API — always returns None."""
+        """Instagram has no native transcript API — Whisper handles it upstream."""
         return None
 
+    # ------------------------------------------------------------------ #
+    #  Audio download                                                      #
+    # ------------------------------------------------------------------ #
+
     async def download_audio(self, url: str, output_dir: str) -> str:
-        """Download audio from Instagram video using yt-dlp."""
+        """Download Instagram video; try instaloader first, then yt-dlp."""
+        # Primary: instaloader — fetches the signed CDN URL and downloads directly
+        try:
+            path = await asyncio.to_thread(self._instaloader_download, url, output_dir)
+            if path and os.path.exists(path):
+                logger.info(f"Downloaded Instagram video to {path}")
+                return path
+        except Exception as exc:
+            logger.warning(f"Instaloader download failed ({exc}); falling back to yt-dlp")
+
+        # Fallback: yt-dlp
+        return await self._ytdlp_download(url, output_dir)
+
+    # --- instaloader helper -------------------------------------------
+
+    def _instaloader_download(self, url: str, output_dir: str) -> str | None:
+        import instaloader
+
+        sc = _shortcode(url)
+        if not sc:
+            return None
+
+        L = instaloader.Instaloader(
+            download_pictures=False,
+            download_videos=False,
+            download_video_thumbnails=False,
+            download_geotags=False,
+            download_comments=False,
+            save_metadata=False,
+            quiet=True,
+        )
+
+        post = instaloader.Post.from_shortcode(L.context, sc)
+        if not post.is_video or not post.video_url:
+            return None
+
+        os.makedirs(output_dir, exist_ok=True)
+        file_id = str(uuid.uuid4())[:8]
+        ext = post.video_url.split("?")[0].rsplit(".", 1)[-1] or "mp4"
+        dest = os.path.join(output_dir, f"ig_{file_id}.{ext}")
+
+        # Download directly from the signed CDN URL (no Instagram login needed
+        # for public reels — the signed URL is returned by the public API).
+        urllib.request.urlretrieve(post.video_url, dest)
+        return dest
+
+    # --- yt-dlp fallback helper --------------------------------------
+
+    async def _ytdlp_download(self, url: str, output_dir: str) -> str:
         import yt_dlp
 
         file_id = str(uuid.uuid4())[:8]
         output_template = f"{output_dir}/ig_{file_id}.%(ext)s"
 
-        ydl_opts = {
+        ydl_opts: dict = {
             "format": "bestaudio/best",
             "outtmpl": output_template,
             "quiet": True,
             "no_warnings": True,
-            "postprocessors": [
-                {
-                    "key": "FFmpegExtractAudio",
-                    "preferredcodec": "wav",
-                    "preferredquality": "192",
-                }
-            ],
         }
+        cp = _cookies_path()
+        if cp:
+            ydl_opts["cookiefile"] = cp
 
-        def _download():
+        downloaded_path: list[str | None] = [None]
+
+        def _progress_hook(d: dict) -> None:
+            if d.get("status") == "finished":
+                downloaded_path[0] = d.get("filename")
+
+        ydl_opts["progress_hooks"] = [_progress_hook]
+
+        def _download() -> None:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
 
         await asyncio.to_thread(_download)
-        return f"{output_dir}/ig_{file_id}.wav"
+        return downloaded_path[0] or f"{output_dir}/ig_{file_id}.mp4"
