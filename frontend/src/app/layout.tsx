@@ -34,7 +34,7 @@ export default function RootLayout({
     <html lang="en" className="scroll-smooth">
       <body className="antialiased">
         <Header />
-        <main className="pt-[60px]">{children}</main>
+        <main className="pt-16">{children}</main>
       </body>
     </html>
   );
