@@ -13,6 +13,13 @@ class Settings(BaseSettings):
     # LLM
     GOOGLE_API_KEY: str = ""
 
+    # YouTube Data API
+    YOUTUBE_API_KEY: str = ""
+
+    @property
+    def youtube_key(self) -> str:
+        return self.YOUTUBE_API_KEY or self.GOOGLE_API_KEY
+
     # Embeddings
     EMBEDDING_MODEL: str = "models/text-embedding-004"
     EMBEDDING_DIMENSION: int = 384
