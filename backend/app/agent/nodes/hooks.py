@@ -17,27 +17,33 @@ async def hooks_node(state: AgentState) -> dict:
     video_b = state.get("video_b_metadata", {})
     chunks = state.get("retrieved_chunks", [])
 
-    # Use stored hook_text directly if available
-    hook_a = video_a.get("hook_text") or ""
-    hook_b = video_b.get("hook_text") or ""
+    # Find chunk 1 details for Video A and B to format hook inputs with citation metadata
+    chunk_1_a = next((c for c in chunks if c.get("video_label") == "A" and c.get("chunk_number") == 1), None)
+    chunk_1_b = next((c for c in chunks if c.get("video_label") == "B" and c.get("chunk_number") == 1), None)
 
-    # Fallback to chunk 1 if not populated
-    if not hook_a:
-        for chunk in chunks:
-            if chunk.get("video_label") == "A" and chunk.get("chunk_number") == 1:
-                hook_a = chunk["chunk_text"]
-                break
-    if not hook_b:
-        for chunk in chunks:
-            if chunk.get("video_label") == "B" and chunk.get("chunk_number") == 1:
-                hook_b = chunk["chunk_text"]
-                break
+    if chunk_1_a:
+        start_val = f"{chunk_1_a.get('start_time'):.1f}s" if chunk_1_a.get("start_time") is not None else "0.0s"
+        end_val = f"{chunk_1_a.get('end_time'):.1f}s" if chunk_1_a.get("end_time") is not None else ""
+        time_str = f", {start_val}-{end_val}" if end_val else f", {start_val}"
+        hook_a = f"[Video A, Chunk 1{time_str}]: {chunk_1_a.get('chunk_text', '')}"
+    else:
+        # Fallback to plain hook_text or transcript
+        t_text_a = video_a.get("transcript_text")
+        fallback_a = str(t_text_a)[:500] if t_text_a else ""
+        hook_text = str(video_a.get("hook_text") or fallback_a)
+        hook_a = f"[Video A, Chunk 1]: {hook_text}" if hook_text else ""
 
-    # Fallback to transcript start if still empty
-    if not hook_a and video_a.get("transcript_text"):
-        hook_a = video_a["transcript_text"][:500]
-    if not hook_b and video_b.get("transcript_text"):
-        hook_b = video_b["transcript_text"][:500]
+    if chunk_1_b:
+        start_val = f"{chunk_1_b.get('start_time'):.1f}s" if chunk_1_b.get("start_time") is not None else "0.0s"
+        end_val = f"{chunk_1_b.get('end_time'):.1f}s" if chunk_1_b.get("end_time") is not None else ""
+        time_str = f", {start_val}-{end_val}" if end_val else f", {start_val}"
+        hook_b = f"[Video B, Chunk 1{time_str}]: {chunk_1_b.get('chunk_text', '')}"
+    else:
+        # Fallback to plain hook_text or transcript
+        t_text_b = video_b.get("transcript_text")
+        fallback_b = str(t_text_b)[:500] if t_text_b else ""
+        hook_text = str(video_b.get("hook_text") or fallback_b)
+        hook_b = f"[Video B, Chunk 1]: {hook_text}" if hook_text else ""
 
     if not hook_a and not hook_b:
         return {"hook_analysis": "No transcript data available for hook analysis."}

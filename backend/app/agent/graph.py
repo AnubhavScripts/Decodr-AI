@@ -12,7 +12,7 @@ Intent routing:
 """
 
 import logging
-from typing import Literal
+from typing import Literal, cast, Any
 
 from langgraph.graph import StateGraph, START, END
 
@@ -39,13 +39,22 @@ def _route_by_intent(
     "recommendations",
 ]:
     """Route to different sub-paths based on the classified intent."""
-    return state["intent"]
+    return cast(
+        Literal[
+            "metadata_only",
+            "transcript_search",
+            "comparison",
+            "hooks",
+            "recommendations",
+        ],
+        state["intent"],
+    )
 
 
-def build_graph() -> StateGraph:
+def build_graph() -> Any:
     """Construct and compile the LangGraph agent."""
 
-    graph = StateGraph(AgentState)
+    graph = StateGraph(AgentState)  # type: ignore
 
     # Register all nodes
     graph.add_node("intent", intent_node)

@@ -1,6 +1,7 @@
 """LangGraph state definition for the Decodr.ai RAG agent."""
 
-from typing import Annotated, TypedDict, Any
+from typing import Annotated, Any
+from typing_extensions import TypedDict
 from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage
 

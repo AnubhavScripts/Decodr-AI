@@ -24,15 +24,8 @@ class Settings(BaseSettings):
     ASSEMBLYAI_API_KEY: str = ""
 
     # Embeddings
-    EMBEDDING_MODEL: str = "models/gemini-embedding-2"
+    EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
     EMBEDDING_DIMENSION: int = 384
-
-    @property
-    def resolved_embedding_model(self) -> str:
-        # Fallback to Google model if legacy local model is configured
-        if "bge-" in self.EMBEDDING_MODEL or "/" in self.EMBEDDING_MODEL or "sentence-transformers" in self.EMBEDDING_MODEL:
-            return "models/gemini-embedding-2"
-        return self.EMBEDDING_MODEL
 
     # Whisper
     WHISPER_MODEL: str = "tiny"

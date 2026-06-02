@@ -110,46 +110,15 @@ export function ProcessingState({ status }: { status: string }) {
       </p>
 
       {/* Steps */}
-      <div className="w-full max-w-xs space-y-3 text-left">
-        {STEPS.map((step, i) => (
+      <div className="w-full max-w-xs space-y-3.5 text-left bg-slate-50/60 border border-slate-100 rounded-2xl p-5 shadow-sm">
+        {STEPS.map((step) => (
           <div key={step} className="flex items-center gap-3">
-            <div
-              className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-all duration-500"
-              style={{
-                background:
-                  i === 0
-                    ? "linear-gradient(135deg, #7c3aed, #4f46e5)"
-                    : "rgba(124, 58, 237, 0.08)",
-                border: i === 0 ? "none" : "1.5px solid rgba(124,58,237,0.15)",
-              }}
-            >
-              {i === 0 ? (
-                <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
-              ) : (
-                <div className="w-2 h-2 rounded-full bg-violet-200" />
-              )}
-            </div>
-            <span
-              className={`text-sm ${
-                i === 0 ? "font-bold text-slate-900" : "text-slate-400"
-              }`}
-            >
+            <div className="w-1.5 h-1.5 rounded-full bg-violet-500 shrink-0" />
+            <span className="text-xs font-semibold text-slate-600">
               {step}
             </span>
           </div>
         ))}
-      </div>
-
-      {/* Progress bar */}
-      <div className="w-full max-w-xs mt-6 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-        <div
-          className="h-full rounded-full"
-          style={{
-            background: "linear-gradient(90deg, #7c3aed, #4f46e5)",
-            width: "30%",
-            animation: "progressGrow 1.8s ease-in-out infinite alternate",
-          }}
-        />
       </div>
 
       {/* Status pill */}

@@ -327,7 +327,11 @@ export default function ChatInterface({
                                       className="shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold text-slate-400 font-mono select-none"
                                       style={{ background: "#f1f5f9", border: "1px solid #e2e8f0" }}
                                     >
-                                      {getMockTimestampForChunk(cit.chunk_number)}
+                                      {cit.start_time !== undefined && cit.start_time !== null && cit.end_time !== undefined && cit.end_time !== null ? (
+                                        `${cit.start_time.toFixed(1)}s – ${cit.end_time.toFixed(1)}s`
+                                      ) : (
+                                        getMockTimestampForChunk(cit.chunk_number)
+                                      )}
                                     </span>
                                   </div>
 

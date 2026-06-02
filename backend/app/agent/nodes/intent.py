@@ -24,7 +24,8 @@ async def intent_node(state: AgentState) -> dict:
 
     chain = INTENT_PROMPT | llm
     result = await chain.ainvoke({"question": last_message})
-    intent = result.content.strip().lower()
+    intent_str = result.content if isinstance(result.content, str) else ""
+    intent = intent_str.strip().lower()
 
     # Validate intent
     valid_intents = {

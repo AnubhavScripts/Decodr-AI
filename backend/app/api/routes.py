@@ -113,7 +113,7 @@ async def get_analysis(
             views=v.views,
             likes=v.likes,
             comments_count=v.comments_count,
-            hashtags=v.hashtags,
+            hashtags=list(v.hashtags) if isinstance(v.hashtags, list) else None,
             upload_date=str(v.upload_date) if v.upload_date else None,
             duration=v.duration,
             thumbnail_url=v.thumbnail_url,

@@ -18,7 +18,7 @@ _client_lock = asyncio.Lock()
 
 
 async def _get_embeddings_client():
-    """Lazily initialize the Google GenAI embeddings client."""
+    """Lazily initialize the SentenceTransformer client."""
     global _embeddings_client
     if _embeddings_client is not None:
         return _embeddings_client
@@ -27,15 +27,14 @@ async def _get_embeddings_client():
         if _embeddings_client is not None:
             return _embeddings_client
 
-        from langchain_google_genai import GoogleGenerativeAIEmbeddings
+        from sentence_transformers import SentenceTransformer
 
-        logger.info(f"Initializing Google GenAI embeddings client ({settings.resolved_embedding_model})...")
-        _embeddings_client = GoogleGenerativeAIEmbeddings(
-            model=settings.resolved_embedding_model,
-            google_api_key=settings.GOOGLE_API_KEY,  # type: ignore
-            output_dimensionality=settings.EMBEDDING_DIMENSION,  # e.g., 384
-        )
-        logger.info("Google GenAI embeddings client initialized.")
+        logger.info(f"Loading SentenceTransformer model '{settings.EMBEDDING_MODEL}'...")
+        def _load():
+            return SentenceTransformer(settings.EMBEDDING_MODEL, device="cpu")
+
+        _embeddings_client = await asyncio.to_thread(_load)
+        logger.info("SentenceTransformer model loaded.")
         return _embeddings_client
 
 
@@ -44,12 +43,16 @@ class EmbeddingService:
 
     @staticmethod
     async def generate(texts: list[str]) -> list[list[float]]:
-        """Generate embeddings for a list of texts using Google GenAI."""
+        """Generate embeddings for a list of texts using BAAI/bge-small-en-v1.5."""
         if not texts:
             return []
 
         client = await _get_embeddings_client()
-        return await client.aembed_documents(texts)
+        
+        def _encode():
+            return client.encode(texts, convert_to_numpy=True).tolist()
+
+        return await asyncio.to_thread(_encode)
 
     @staticmethod
     async def store_chunks(

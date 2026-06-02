@@ -34,7 +34,9 @@ Evaluate each hook on these criteria:
 5. **Authority Signal** — Does the creator establish credibility early?
 
 Provide a detailed comparison of both hooks with specific examples from the transcripts.
-Rate each hook on a scale of 1-10 for each criterion."""),
+Rate each hook on a scale of 1-10 for each criterion.
+
+IMPORTANT: Always cite the transcript sources when referencing opening statements or quotes using the exact bracket format provided in the source input (e.g., [Video A, Chunk 1, 0.0s-12.5s])."""),
     ("human", """Video A — "{video_a_title}" by {video_a_creator}:
 Opening transcript: {video_a_hook}
 
