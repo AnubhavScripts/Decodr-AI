@@ -40,8 +40,9 @@ class YouTubeProvider(BaseVideoProvider):
         """Use yt-dlp to extract metadata without downloading."""
         import yt_dlp
         import os
+        from typing import Any, cast
 
-        ydl_opts = {
+        ydl_opts: dict[str, Any] = {
             "skip_download": True,
             "quiet": True,
             "no_warnings": True,
@@ -53,7 +54,7 @@ class YouTubeProvider(BaseVideoProvider):
                 break
 
         def _extract():
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            with yt_dlp.YoutubeDL(cast(Any, ydl_opts)) as ydl:
                 return ydl.extract_info(url, download=False)
 
         info = await asyncio.to_thread(_extract)
@@ -76,8 +77,8 @@ class YouTubeProvider(BaseVideoProvider):
         return VideoMetadata(
             platform="youtube",
             original_url=url,
-            title=info.get("title", "Untitled"),
-            creator=info.get("uploader", info.get("channel", "Unknown")),
+            title=info.get("title") or "Untitled",
+            creator=info.get("uploader") or info.get("channel") or "Unknown",
             follower_count=info.get("channel_follower_count"),
             views=info.get("view_count", 0) or 0,
             likes=info.get("like_count", 0) or 0,
@@ -86,7 +87,7 @@ class YouTubeProvider(BaseVideoProvider):
             upload_date=upload_date,
             duration=float(info.get("duration", 0) or 0),
             thumbnail_url=info.get("thumbnail"),
-            video_url=info.get("webpage_url", url),
+            video_url=info.get("webpage_url") or url,
         )
 
     async def extract_transcript(self, url: str) -> str | None:
@@ -139,11 +140,12 @@ class YouTubeProvider(BaseVideoProvider):
         """Download audio-only using yt-dlp (no ffmpeg required)."""
         import yt_dlp
         import os
+        from typing import Any, cast
 
         video_id = _extract_video_id(url) or "audio"
         output_template = f"{output_dir}/{video_id}.%(ext)s"
 
-        ydl_opts = {
+        ydl_opts: dict[str, Any] = {
             # Download best audio-only stream without post-processing
             "format": "bestaudio/best",
             "outtmpl": output_template,
@@ -166,7 +168,7 @@ class YouTubeProvider(BaseVideoProvider):
         ydl_opts["progress_hooks"] = [_progress_hook]
 
         def _download():
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            with yt_dlp.YoutubeDL(cast(Any, ydl_opts)) as ydl:
                 ydl.download([url])
 
         await asyncio.to_thread(_download)

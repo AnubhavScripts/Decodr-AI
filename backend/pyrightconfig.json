@@ -1,0 +1,7 @@
+{
+  "venvPath": "/Users/anubhavparashar/HookIQ/backend",
+  "venv": "venv",
+  "pythonVersion": "3.13",
+  "include": ["app"],
+  "extraPaths": ["app"]
+}
