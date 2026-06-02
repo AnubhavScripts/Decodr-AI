@@ -1,5 +1,6 @@
 """Decodr.ai Backend — FastAPI application entry point."""
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -35,8 +36,13 @@ async def lifespan(app: FastAPI):
         raise RuntimeError("CRITICAL: 'instaloader' dependency is missing!")
 
     # Initialize database (create tables, extensions)
-    await init_db()
-    logger.info("Database initialized.")
+    try:
+        await asyncio.wait_for(init_db(), timeout=15)
+        logger.info("Database initialized successfully.")
+    except asyncio.TimeoutError:
+        logger.warning("Database initialization timed out after 15s. Continuing without database.")
+    except Exception as e:
+        logger.warning(f"Database initialization failed: {e}. The app will continue, but database features may be unavailable.")
 
     # Embedding model loads lazily on first use to conserve startup memory
     logger.info("Embedding service configured for lazy loading.")
