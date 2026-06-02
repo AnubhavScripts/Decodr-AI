@@ -2,9 +2,14 @@
 
 import uuid
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 from sqlalchemy import String, DateTime, Text, BigInteger, Float, ForeignKey, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
+
+if TYPE_CHECKING:
+    from app.models.analysis import AnalysisSession
+    from app.models.transcript import TranscriptChunk
 
 
 class Video(Base):
