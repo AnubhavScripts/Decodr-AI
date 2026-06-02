@@ -135,6 +135,10 @@ class IngestionService:
             video_b.transcript_text = transcript_b
             video_b.transcript_source = source_b
 
+            # Validate that transcripts are available; if not, fail the ingestion session
+            if not transcript_a or not transcript_a.strip() or not transcript_b or not transcript_b.strip():
+                raise ValueError("Transcript unavailable due to platform restrictions")
+
             # 6. Chunk transcripts
             logger.info(f"[{analysis_id}] Chunking transcripts...")
             chunks_a = TranscriptService.chunk(transcript_a)
