@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: str = ""
 
     # Embeddings
-    EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
+    EMBEDDING_MODEL: str = "models/text-embedding-004"
     EMBEDDING_DIMENSION: int = 384
 
     # Whisper

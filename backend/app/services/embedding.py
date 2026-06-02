@@ -1,11 +1,10 @@
-"""Embedding generation and vector storage/retrieval using BGE + pgvector."""
+"""Embedding generation and vector storage/retrieval using Google GenAI + pgvector."""
 
 import asyncio
 import logging
-from typing import Sequence
+from typing import Any
 
-import numpy as np
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -14,30 +13,30 @@ from app.models.transcript import TranscriptChunk
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
-# Singleton model instance
-_model = None
-_model_lock = asyncio.Lock()
+_embeddings_client = None
+_client_lock = asyncio.Lock()
 
 
-async def _get_model():
-    """Lazily load the sentence-transformers model."""
-    global _model
-    if _model is not None:
-        return _model
+async def _get_embeddings_client():
+    """Lazily initialize the Google GenAI embeddings client."""
+    global _embeddings_client
+    if _embeddings_client is not None:
+        return _embeddings_client
 
-    async with _model_lock:
-        if _model is not None:
-            return _model
+    async with _client_lock:
+        if _embeddings_client is not None:
+            return _embeddings_client
 
-        from sentence_transformers import SentenceTransformer
+        from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
-        def _load():
-            return SentenceTransformer(settings.EMBEDDING_MODEL)
-
-        logger.info(f"Loading embedding model '{settings.EMBEDDING_MODEL}'...")
-        _model = await asyncio.to_thread(_load)
-        logger.info("Embedding model loaded.")
-        return _model
+        logger.info("Initializing Google GenAI embeddings client (models/text-embedding-004)...")
+        _embeddings_client = GoogleGenerativeAIEmbeddings(
+            model="models/text-embedding-004",
+            google_api_key=settings.GOOGLE_API_KEY,
+            output_dimensionality=settings.EMBEDDING_DIMENSION,  # e.g., 384
+        )
+        logger.info("Google GenAI embeddings client initialized.")
+        return _embeddings_client
 
 
 class EmbeddingService:
@@ -45,21 +44,12 @@ class EmbeddingService:
 
     @staticmethod
     async def generate(texts: list[str]) -> list[list[float]]:
-        """Generate embeddings for a list of texts using BGE."""
+        """Generate embeddings for a list of texts using Google GenAI."""
         if not texts:
             return []
 
-        model = await _get_model()
-
-        def _encode():
-            embeddings = model.encode(
-                texts,
-                normalize_embeddings=True,
-                show_progress_bar=False,
-            )
-            return embeddings.tolist()
-
-        return await asyncio.to_thread(_encode)
+        client = await _get_embeddings_client()
+        return await client.aembed_documents(texts)
 
     @staticmethod
     async def store_chunks(
@@ -142,6 +132,6 @@ class EmbeddingService:
 
     @staticmethod
     async def preload_model():
-        """Pre-load the embedding model (called at startup)."""
-        await _get_model()
-        logger.info("Embedding model preloaded and ready.")
+        """Pre-load/Initialize the embeddings client (called at startup)."""
+        await _get_embeddings_client()
+        logger.info("Embeddings client initialized and ready.")
