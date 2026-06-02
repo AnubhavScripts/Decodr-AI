@@ -1,11 +1,15 @@
 """TranscriptChunk model — stores chunked transcript text with pgvector embeddings."""
 
 import uuid
+from typing import TYPE_CHECKING
 from sqlalchemy import String, Integer, Text, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from pgvector.sqlalchemy import Vector
 from app.models.base import Base
 from app.config import get_settings
+
+if TYPE_CHECKING:
+    from app.models.video import Video
 
 settings = get_settings()
 
