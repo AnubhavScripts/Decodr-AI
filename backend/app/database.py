@@ -1,5 +1,6 @@
 """Async SQLAlchemy database engine and session management."""
 
+from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -10,8 +11,16 @@ from app.config import get_settings
 
 settings = get_settings()
 
+# Fix sslmode parameter for asyncpg compatibility (e.g. from Neon DB copy-pastes)
+db_url = settings.DATABASE_URL
+if db_url.startswith("postgresql://"):
+    db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+if "sslmode=" in db_url:
+    db_url = db_url.replace("sslmode=require", "ssl=require")
+    db_url = db_url.replace("sslmode=prefer", "ssl=require")
+
 engine = create_async_engine(
-    settings.DATABASE_URL,
+    db_url,
     echo=False,
     pool_size=20,
     max_overflow=10,
@@ -25,7 +34,7 @@ async_session_factory = async_sessionmaker(
 )
 
 
-async def get_db() -> AsyncSession:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """FastAPI dependency that yields an async database session."""
     async with async_session_factory() as session:
         try:
