@@ -54,26 +54,56 @@ export default function Header() {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled || isDashboard
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled || isDashboard
           ? "bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm"
           : "bg-white/80 backdrop-blur-sm border-b border-transparent"
-      }`}
+        }`}
     >
-      <div className="max-w-[1400px] mx-auto flex items-center justify-between px-6 py-3 h-[60px]">
+      <div className="max-w-[1400px] mx-auto flex items-center justify-between px-6 md:px-10 lg:px-16 py-3 h-[60px]">
 
         {/* ── Logo ── */}
         <Link href="/" className="flex items-center gap-2 group shrink-0">
-          <div className="w-6 h-6 rounded bg-violet-650 flex items-center justify-center">
+          <div className="w-6 h-6 rounded-lg flex items-center justify-center bg-gradient-to-tr from-violet-600 to-indigo-600">
             <Zap className="w-3.5 h-3.5 text-white" />
           </div>
           <span className="text-base font-extrabold text-gray-900 tracking-tight">
-            HookIQ
+            Decodr.ai
           </span>
         </Link>
 
-        {/* ── Center: Nav (empty on dashboard to keep header clean) ── */}
-        {!isDashboard && (
+        {/* ── Center: Search or Nav ── */}
+        {isDashboard ? (
+          <div className="hidden md:flex items-center justify-center flex-1 mx-6">
+            <form
+              onSubmit={handleQuickAnalyze}
+              className="flex items-center gap-2 max-w-[420px] w-full relative"
+            >
+              <div className="relative w-full">
+                <input
+                  type="text"
+                  placeholder="Compare another... paste 'URL1 vs URL2'"
+                  value={inputVal}
+                  onChange={(e) => setInputVal(e.target.value)}
+                  disabled={loading}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-4 pr-9 py-2 text-xs font-semibold text-slate-700 placeholder:text-slate-400 outline-none focus:border-violet-400 focus:bg-white focus:ring-2 focus:ring-violet-100/60 transition-all"
+                />
+                {loading ? (
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-violet-600" />
+                ) : (
+                  inputVal && (
+                    <button
+                      type="button"
+                      onClick={() => setInputVal("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )
+                )}
+              </div>
+            </form>
+          </div>
+        ) : (
           <nav className="hidden md:flex items-center gap-7">
             <a
               href="#features"
@@ -114,11 +144,30 @@ export default function Header() {
               </Link>
             </>
           ) : (
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-gray-600 cursor-pointer transition-colors hover:bg-gray-100 border border-gray-200 bg-gray-50"
-              title="Account"
-            >
-              <User className="w-4 h-4" />
+            <div className="flex items-center gap-4">
+              {/* Video A / B indicators */}
+              <div className="hidden sm:flex items-center gap-4 select-none">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-violet-600" />
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    Video A
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-sky-500" />
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    Video B
+                  </span>
+                </div>
+              </div>
+
+              {/* User avatar */}
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center text-gray-600 cursor-pointer transition-colors hover:bg-gray-100 border border-gray-200 bg-gray-50"
+                title="Account"
+              >
+                <User className="w-4 h-4" />
+              </div>
             </div>
           )}
         </div>
