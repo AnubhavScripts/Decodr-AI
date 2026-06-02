@@ -38,13 +38,8 @@ async def lifespan(app: FastAPI):
     await init_db()
     logger.info("Database initialized.")
 
-    # Pre-load embedding model in background (non-blocking)
-    # It will load lazily on first use if this fails
-    try:
-        from app.services.embedding import EmbeddingService
-        await EmbeddingService.preload_model()
-    except Exception as e:
-        logger.warning(f"Embedding model preload failed (will lazy-load): {e}")
+    # Embedding model loads lazily on first use to conserve startup memory
+    logger.info("Embedding service configured for lazy loading.")
 
     logger.info("Decodr.ai backend ready!")
     yield
