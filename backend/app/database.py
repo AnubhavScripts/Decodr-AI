@@ -11,13 +11,26 @@ from app.config import get_settings
 
 settings = get_settings()
 
-# Fix sslmode parameter for asyncpg compatibility (e.g. from Neon DB copy-pastes)
+import urllib.parse
+
+# Fix connection parameters for asyncpg compatibility (e.g. from Neon DB copy-pastes)
 db_url = settings.DATABASE_URL
 if db_url.startswith("postgresql://"):
     db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-if "sslmode=" in db_url:
-    db_url = db_url.replace("sslmode=require", "ssl=require")
-    db_url = db_url.replace("sslmode=prefer", "ssl=require")
+
+parsed = urllib.parse.urlparse(db_url)
+params = urllib.parse.parse_qsl(parsed.query)
+cleaned_params = []
+for k, v in params:
+    if k == "channel_binding":
+        continue
+    if k == "sslmode":
+        k = "ssl"
+        if v in ("require", "prefer", "allow"):
+            v = "require"
+    cleaned_params.append((k, v))
+new_query = urllib.parse.urlencode(cleaned_params)
+db_url = parsed._replace(query=new_query).geturl()
 
 engine = create_async_engine(
     db_url,
