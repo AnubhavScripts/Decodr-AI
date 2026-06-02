@@ -7,7 +7,14 @@ import type {
   HealthResponse,
 } from "./types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8023/api";
+const getApiBase = () => {
+  const rawUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8023/api";
+  // Trim trailing slash first if present
+  const trimmedUrl = rawUrl.endsWith("/") ? rawUrl.slice(0, -1) : rawUrl;
+  return trimmedUrl.endsWith("/api") ? trimmedUrl : `${trimmedUrl}/api`;
+};
+
+const API_BASE = getApiBase();
 
 async function fetchJSON<T>(
   url: string,

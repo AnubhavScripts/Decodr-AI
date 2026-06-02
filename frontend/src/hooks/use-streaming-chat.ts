@@ -47,8 +47,12 @@ export function useStreamingChat(analysisId: string) {
         const controller = new AbortController();
         abortRef.current = controller;
 
+        const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8023/api";
+        const trimmedApiUrl = rawApiUrl.endsWith("/") ? rawApiUrl.slice(0, -1) : rawApiUrl;
+        const apiBase = trimmedApiUrl.endsWith("/api") ? trimmedApiUrl : `${trimmedApiUrl}/api`;
+
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8023/api"}/chat`,
+          `${apiBase}/chat`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
