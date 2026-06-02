@@ -2,14 +2,8 @@
 
 import React, { useState } from "react";
 import {
-  FileText,
-  ChevronDown,
-  ChevronUp,
-  Play,
-  Eye,
-  Heart,
-  MessageCircle,
-  TrendingUp,
+  FileText, ChevronDown, ChevronUp,
+  Play, Eye, Heart, MessageCircle, TrendingUp,
 } from "lucide-react";
 import { formatNumber, formatDuration, formatRate } from "@/lib/utils";
 import type { VideoSummary } from "@/lib/types";
@@ -18,35 +12,45 @@ interface VideoComparisonProps {
   videos: VideoSummary[];
 }
 
+/** Strip emojis / special characters from API-returned titles */
+function cleanTitle(title: string): string {
+  return title
+    .replace(/[\u{1F000}-\u{1FFFF}]/gu, "")
+    .replace(/[\u{2600}-\u{27BF}]/gu, "")
+    .replace(/[✅❌🔗✏️⚡🎯🚀💡🔥⭐🏆🎉🎊]/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 function MetricCell({
   icon,
   label,
   value,
   accent,
   accentColor,
-  border,
+  showRightBorder,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   accent?: boolean;
   accentColor: string;
-  border: string;
+  showRightBorder?: boolean;
 }) {
   return (
-    <div 
-      className="flex flex-col gap-1 px-5 py-4 transition-colors duration-250 hover:bg-slate-50/45" 
-      style={{ borderRight: border }}
+    <div
+      className="flex flex-col gap-1.5 px-5 py-4.5 hover:bg-slate-50/60 transition-colors duration-150 cursor-default"
+      style={{ borderRight: showRightBorder ? "1px solid #f1f5f9" : "none" }}
     >
       <div
-        className="flex items-center gap-1.5 text-[8.5px] font-extrabold uppercase tracking-widest"
-        style={{ color: accent ? accentColor : "#64748b" }}
+        className="flex items-center gap-1.5 text-[9px] font-extrabold uppercase tracking-widest"
+        style={{ color: accent ? accentColor : "#94a3b8" }}
       >
-        <span style={{ color: accent ? accentColor : "#94a3b8" }}>{icon}</span>
+        <span style={{ color: accent ? accentColor : "#cbd5e1" }}>{icon}</span>
         {label}
       </div>
       <span
-        className="text-xl font-black leading-none tracking-tight"
+        className="text-[20px] font-black leading-none tracking-tight"
         style={{ color: accent ? accentColor : "#0f172a" }}
       >
         {value}
@@ -62,61 +66,103 @@ function VideoCard({
 }: {
   video: VideoSummary;
   label: string;
-  accent: { color: string; light: string; gradient: string };
+  accent: { color: string; lightBg: string; gradient: string; borderColor: string; labelText: string };
 }) {
   const [showTranscript, setShowTranscript] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const cleanedTitle = cleanTitle(video.title);
 
   return (
     <div
-      className="flex-1 min-w-0 flex flex-col rounded-2xl overflow-hidden border border-gray-100 bg-white"
-      style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}
+      className="flex-1 min-w-0 flex flex-col rounded-2xl overflow-hidden bg-white"
+      style={{
+        border: `1.5px solid ${accent.borderColor}`,
+        boxShadow: `0 4px 20px rgba(0,0,0,0.06), 0 0 0 0 ${accent.color}`,
+        transition: "box-shadow 0.25s ease, transform 0.25s ease",
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)";
+        (e.currentTarget as HTMLDivElement).style.boxShadow = `0 8px 28px rgba(0,0,0,0.09), 0 0 0 1px ${accent.borderColor}`;
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
+        (e.currentTarget as HTMLDivElement).style.boxShadow = `0 4px 20px rgba(0,0,0,0.06)`;
+      }}
     >
-      <div className="px-5 py-3.5 flex items-center gap-3 border-b border-slate-100/50" style={{ background: accent.light }}>
+      {/* ── Coloured header bar ── */}
+      <div
+        className="px-5 py-3.5 flex items-center gap-3.5 rounded-t-2xl"
+        style={{
+          background: accent.lightBg,
+          borderBottom: `1.5px solid ${accent.borderColor}`,
+        }}
+      >
         <span
-          className="text-[9px] font-black uppercase tracking-widest text-white px-3 py-1.5 rounded-full"
+          className="inline-flex items-center justify-center text-[9px] font-black uppercase tracking-widest text-white px-3 py-1.5 rounded-full shrink-0 select-none"
           style={{ background: accent.gradient }}
         >
           Video {label}
         </span>
-        <span className="text-[12px] font-semibold text-slate-500 truncate">
+        <span className="text-[12px] font-bold truncate flex-1 min-w-0" style={{ color: accent.labelText }}>
           @{video.creator || "creator"}
         </span>
       </div>
 
-      <div className="flex gap-4 p-5">
-        <div className="relative shrink-0 w-28 h-20 rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center border border-slate-100/50">
+      {/* ── Thumbnail + Title ── */}
+      <div className="flex gap-4 p-5 pb-4">
+        {/* Thumbnail */}
+        <div
+          className="relative shrink-0 rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center"
+          style={{ width: 108, height: 76, border: `1px solid ${accent.borderColor}` }}
+        >
           {video.thumbnail_url && !imgError ? (
-            <img 
-              src={video.thumbnail_url} 
-              alt={video.title} 
-              className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+            <img
+              src={video.thumbnail_url}
+              alt={cleanedTitle}
+              className="w-full h-full object-cover"
+              style={{ transition: "transform 0.4s ease" }}
               onError={() => setImgError(true)}
+              onMouseEnter={(e) => ((e.currentTarget as HTMLImageElement).style.transform = "scale(1.06)")}
+              onMouseLeave={(e) => ((e.currentTarget as HTMLImageElement).style.transform = "scale(1)")}
             />
           ) : (
             <div
-              className="w-full h-full flex items-center justify-center transition-colors duration-300 hover:bg-slate-50"
-              style={{ background: `linear-gradient(135deg, ${accent.color}22, ${accent.color}44)` }}
+              className="w-full h-full flex items-center justify-center"
+              style={{ background: `linear-gradient(135deg, ${accent.color}15, ${accent.color}30)` }}
             >
-              <Play className="w-7 h-7" style={{ color: accent.color }} />
+              <Play className="w-6 h-6" style={{ color: accent.color }} />
             </div>
           )}
-          <div className="absolute bottom-1.5 right-1.5 bg-black/75 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded backdrop-blur-sm shadow-sm select-none">
+          {/* Duration badge */}
+          <div className="absolute bottom-1 right-1 bg-black/75 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded select-none">
             {formatDuration(video.duration)}
           </div>
         </div>
-        <div className="flex-1 min-w-0 flex items-start pt-0.5">
-          <h3 className="text-[13px] font-bold text-slate-900 leading-snug line-clamp-3">{video.title}</h3>
+
+        {/* Title */}
+        <div className="flex-1 min-w-0 flex flex-col justify-center">
+          <h3
+            className="text-[12.5px] font-bold text-slate-900 leading-snug"
+            style={{
+              display: "-webkit-box",
+              WebkitLineClamp: 3,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}
+          >
+            {cleanedTitle}
+          </h3>
         </div>
       </div>
 
+      {/* ── Metrics grid ── */}
       <div className="grid grid-cols-2 border-t border-slate-100 mt-auto">
         <MetricCell
           icon={<Eye className="w-3 h-3" />}
           label="Views"
           value={formatNumber(video.views)}
           accentColor={accent.color}
-          border="1px solid #f1f5f9"
+          showRightBorder
         />
         <MetricCell
           icon={<TrendingUp className="w-3 h-3" />}
@@ -124,7 +170,6 @@ function VideoCard({
           value={formatRate(video.engagement_rate)}
           accent
           accentColor={accent.color}
-          border="none"
         />
         <div className="col-span-2 border-t border-slate-100 grid grid-cols-2">
           <MetricCell
@@ -132,34 +177,35 @@ function VideoCard({
             label="Likes"
             value={formatNumber(video.likes)}
             accentColor={accent.color}
-            border="1px solid #f1f5f9"
+            showRightBorder
           />
           <MetricCell
             icon={<MessageCircle className="w-3 h-3" />}
             label="Comments"
             value={formatNumber(video.comments_count)}
             accentColor={accent.color}
-            border="none"
           />
         </div>
       </div>
 
+      {/* ── Transcript toggle ── */}
       {video.transcript_available && (
         <div className="border-t border-slate-100">
           <button
             onClick={() => setShowTranscript(!showTranscript)}
-            className="w-full flex items-center justify-center gap-2 py-3 text-[11px] font-bold text-slate-400 hover:text-violet-600 hover:bg-slate-50/80 transition-colors duration-200"
+            className="w-full flex items-center justify-center gap-2 py-2.5 text-[11px] font-bold text-slate-400 hover:text-violet-600 hover:bg-slate-50/70 transition-all duration-200 cursor-pointer"
           >
             <FileText className="w-3.5 h-3.5" />
             {showTranscript ? "Hide" : "View"} Transcript
             {showTranscript ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
+
           {showTranscript && (
             <div
-              className="mx-4 mb-4 p-4 rounded-xl border animate-fade-in"
-              style={{ borderColor: `${accent.color}33`, background: `${accent.color}08` }}
+              className="mx-3.5 mb-3.5 p-3.5 rounded-xl border animate-fade-in"
+              style={{ borderColor: `${accent.color}22`, background: `${accent.color}05` }}
             >
-              <p className="text-[9px] font-black uppercase tracking-widest mb-1.5" style={{ color: accent.color }}>
+              <p className="text-[9px] font-black uppercase tracking-widest mb-1" style={{ color: accent.color }}>
                 ✦ Transcript Indexed
               </p>
               <p className="text-[11px] text-slate-500 leading-relaxed">
@@ -179,22 +225,36 @@ export default function VideoComparison({ videos }: VideoComparisonProps) {
   if (!videoA || !videoB) return null;
 
   return (
-    <div className="flex flex-col lg:flex-row items-stretch gap-4 w-full">
+    <div className="flex flex-col lg:flex-row items-stretch gap-6 w-full">
       <VideoCard
         video={videoA}
         label="A"
-        accent={{ color: "#7c3aed", light: "#f5f3ff", gradient: "linear-gradient(135deg,#7c3aed,#6d28d9)" }}
+        accent={{
+          color: "#7c3aed",
+          lightBg: "#f5f3ff",
+          gradient: "linear-gradient(135deg,#7c3aed,#6d28d9)",
+          borderColor: "#ddd6fe",
+          labelText: "#6d28d9",
+        }}
       />
 
-      <div className="hidden lg:flex flex-col items-center justify-center gap-3 shrink-0 py-6">
-        <div className="w-px flex-1" style={{ background: "linear-gradient(to bottom, transparent, #e2e8f0, transparent)" }} />
-        <div className="w-9 h-9 rounded-full border-2 border-slate-200 bg-white flex items-center justify-center text-[9px] font-black text-slate-400 shadow-sm select-none">
+      {/* ── VS divider — desktop ── */}
+      <div className="hidden lg:flex flex-col items-center justify-center gap-2 shrink-0 py-4">
+        <div className="w-px flex-1 bg-gradient-to-b from-transparent via-slate-300 to-transparent" />
+        <div
+          className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-[9px] font-black text-slate-500 select-none"
+          style={{
+            border: "2px solid #e2e8f0",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+          }}
+        >
           VS
         </div>
-        <div className="w-px flex-1" style={{ background: "linear-gradient(to bottom, transparent, #e2e8f0, transparent)" }} />
+        <div className="w-px flex-1 bg-gradient-to-b from-transparent via-slate-300 to-transparent" />
       </div>
 
-      <div className="flex lg:hidden items-center gap-3">
+      {/* ── VS divider — mobile ── */}
+      <div className="flex lg:hidden items-center gap-3 my-3">
         <div className="h-px flex-1 bg-slate-200" />
         <span className="text-[10px] font-black text-slate-400 bg-white border border-slate-200 px-3 py-1 rounded-full shadow-sm">
           VS
@@ -205,7 +265,13 @@ export default function VideoComparison({ videos }: VideoComparisonProps) {
       <VideoCard
         video={videoB}
         label="B"
-        accent={{ color: "#2563eb", light: "#eff6ff", gradient: "linear-gradient(135deg,#2563eb,#1d4ed8)" }}
+        accent={{
+          color: "#2563eb",
+          lightBg: "#eff6ff",
+          gradient: "linear-gradient(135deg,#2563eb,#1d4ed8)",
+          borderColor: "#bfdbfe",
+          labelText: "#1d4ed8",
+        }}
       />
     </div>
   );
