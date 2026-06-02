@@ -127,7 +127,7 @@ You are analyzing two videos:
 {additional_context}
 
 IMPORTANT RULES:
-1. Always cite your sources using [Video A, Chunk N] or [Video B, Chunk N] format when referencing transcript content.
+1. Always cite your sources when referencing transcript content. If timestamps are available in the context, format the citation precisely as: [Video X, Chunk Y, StartS-EndS] (e.g. [Video A, Chunk 12, 34.2s-41.7s]). If timestamps are not available, use [Video X, Chunk Y].
 2. Use actual data — never fabricate metrics or quotes.
 3. Be specific and analytical, not generic.
 4. Format your response with markdown for readability.

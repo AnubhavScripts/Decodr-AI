@@ -17,16 +17,23 @@ async def hooks_node(state: AgentState) -> dict:
     video_b = state.get("video_b_metadata", {})
     chunks = state.get("retrieved_chunks", [])
 
-    # Get first chunk for each video as the "hook"
-    hook_a = ""
-    hook_b = ""
-    for chunk in chunks:
-        if chunk.get("video_label") == "A" and chunk.get("chunk_number") == 1:
-            hook_a = chunk["chunk_text"]
-        elif chunk.get("video_label") == "B" and chunk.get("chunk_number") == 1:
-            hook_b = chunk["chunk_text"]
+    # Use stored hook_text directly if available
+    hook_a = video_a.get("hook_text") or ""
+    hook_b = video_b.get("hook_text") or ""
 
-    # If we didn't get chunk 1, use transcript start
+    # Fallback to chunk 1 if not populated
+    if not hook_a:
+        for chunk in chunks:
+            if chunk.get("video_label") == "A" and chunk.get("chunk_number") == 1:
+                hook_a = chunk["chunk_text"]
+                break
+    if not hook_b:
+        for chunk in chunks:
+            if chunk.get("video_label") == "B" and chunk.get("chunk_number") == 1:
+                hook_b = chunk["chunk_text"]
+                break
+
+    # Fallback to transcript start if still empty
     if not hook_a and video_a.get("transcript_text"):
         hook_a = video_a["transcript_text"][:500]
     if not hook_b and video_b.get("transcript_text"):

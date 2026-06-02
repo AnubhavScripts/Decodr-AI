@@ -125,24 +125,49 @@ class IngestionService:
 
             # 5. Extract transcripts concurrently
             logger.info(f"[{analysis_id}] Extracting transcripts...")
-            (transcript_a, source_a), (transcript_b, source_b) = await asyncio.gather(
+            (transcript_a, source_a, offsets_a), (transcript_b, source_b, offsets_b) = await asyncio.gather(
                 TranscriptService.extract(provider_a, url_a),
                 TranscriptService.extract(provider_b, url_b),
             )
 
+            # Hook extraction helper
+            def _extract_hook_text(full_text: str, offsets: list[tuple[int, int, float, float]], duration_seconds: float = 5.0) -> str:
+                if not full_text or not offsets:
+                    return ""
+                hook_segments = []
+                for start_char, end_char, start_time, end_time in offsets:
+                    if start_time < duration_seconds:
+                        seg_text = full_text[start_char:end_char].strip()
+                        if seg_text:
+                            hook_segments.append(seg_text)
+                return " ".join(hook_segments)
+
+            # Set transcript_status helper
+            def _get_transcript_status(source: str) -> str:
+                if source in ("youtube_transcript_api",):
+                    return "success"
+                elif source in ("whisper", "assemblyai"):
+                    return "fallback"
+                else:
+                    return "unavailable"
+
             video_a.transcript_text = transcript_a
             video_a.transcript_source = source_a
+            video_a.transcript_status = _get_transcript_status(source_a)
+            video_a.hook_text = _extract_hook_text(transcript_a, offsets_a)
+
             video_b.transcript_text = transcript_b
             video_b.transcript_source = source_b
+            video_b.transcript_status = _get_transcript_status(source_b)
+            video_b.hook_text = _extract_hook_text(transcript_b, offsets_b)
 
-            # Validate that transcripts are available; if not, fail the ingestion session
-            if not transcript_a or not transcript_a.strip() or not transcript_b or not transcript_b.strip():
-                raise ValueError("Transcript unavailable due to platform restrictions")
+            # Check if any transcript is unavailable
+            transcript_missing = not transcript_a or not transcript_a.strip() or not transcript_b or not transcript_b.strip()
 
             # 6. Chunk transcripts
             logger.info(f"[{analysis_id}] Chunking transcripts...")
-            chunks_a = TranscriptService.chunk(transcript_a)
-            chunks_b = TranscriptService.chunk(transcript_b)
+            chunks_a = TranscriptService.chunk(transcript_a, offsets_a) if transcript_a else []
+            chunks_b = TranscriptService.chunk(transcript_b, offsets_b) if transcript_b else []
 
             # 7. Generate embeddings and store
             all_chunks = chunks_a + chunks_b
@@ -151,7 +176,7 @@ class IngestionService:
                     f"[{analysis_id}] Generating embeddings for "
                     f"{len(all_chunks)} chunks..."
                 )
-                all_embeddings = await EmbeddingService.generate(all_chunks)
+                all_embeddings = await EmbeddingService.generate([c["text"] for c in all_chunks])
 
                 # Split embeddings back to per-video
                 embeddings_a = all_embeddings[: len(chunks_a)]
@@ -169,11 +194,18 @@ class IngestionService:
             else:
                 logger.warning(f"[{analysis_id}] No transcript chunks to embed")
 
-            # 8. Mark completed
-            session.status = "completed"
+            # 8. Mark completed or partial success
+            if transcript_missing:
+                session.status = "partial_success"
+                session.error_message = "Transcript unavailable due to platform restrictions"
+                logger.warning(f"[{analysis_id}] Analysis completed with partial success (transcripts missing).")
+            else:
+                session.status = "completed"
+                session.error_message = None
+                logger.info(f"[{analysis_id}] Analysis completed successfully!")
+
             session.updated_at = datetime.now(timezone.utc)
             await db.commit()
-            logger.info(f"[{analysis_id}] Analysis completed successfully!")
 
         except Exception as e:
             logger.error(f"[{analysis_id}] Ingestion failed: {e}", exc_info=True)

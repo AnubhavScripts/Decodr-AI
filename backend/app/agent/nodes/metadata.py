@@ -32,6 +32,8 @@ def _video_to_dict(video: Video) -> dict:
         "like_rate": video.like_rate,
         "engagement_per_follower": video.engagement_per_follower,
         "transcript_text": video.transcript_text,
+        "transcript_status": video.transcript_status,
+        "hook_text": video.hook_text,
     }
 
 

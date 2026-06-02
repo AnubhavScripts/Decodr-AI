@@ -213,7 +213,7 @@ class YouTubeProvider(BaseVideoProvider):
             
         return await _fallback_ytdlp()
 
-    async def extract_transcript(self, url: str) -> str | None:
+    async def extract_transcript(self, url: str) -> list[dict] | None:
         """
         Try youtube-transcript-api first (fast, no download).
         Returns None if unavailable — caller should fall back to whisper.
@@ -248,12 +248,16 @@ class YouTubeProvider(BaseVideoProvider):
                     return None
                 # v1.x: .fetch() returns FetchedTranscript with FetchedTranscriptSnippet items
                 fetched = transcript.fetch()
-                return " ".join(s.text for s in fetched)
+                return [
+                    {
+                        "text": s.text,
+                        "start": s.start,
+                        "end": s.start + (s.duration or 0.0)
+                    }
+                    for s in fetched
+                ]
 
-            text = await asyncio.to_thread(_fetch)
-            if text:
-                text = text.strip()
-            return text if text else None
+            return await asyncio.to_thread(_fetch)
 
         except Exception as e:
             logger.info(f"YouTube transcript API failed for {video_id}: {e}")

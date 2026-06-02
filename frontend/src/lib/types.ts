@@ -35,7 +35,7 @@ export interface VideoSummary {
 
 export interface AnalysisDetail {
   id: string;
-  status: "pending" | "processing" | "completed" | "failed";
+  status: "pending" | "processing" | "completed" | "failed" | "partial_success";
   error_message: string | null;
   created_at: string;
   updated_at: string;
@@ -53,6 +53,8 @@ export interface Citation {
   chunk_text_preview: string;
   video_id: string;
   relevance_distance: number;
+  start_time?: number | null;
+  end_time?: number | null;
 }
 
 export interface ChatMessage {

@@ -21,7 +21,10 @@ def _format_transcript_context(chunks: list[dict]) -> str:
         label = f"Video {chunk.get('video_label', '?')}"
         num = chunk.get("chunk_number", "?")
         text = chunk.get("chunk_text", "")
-        lines.append(f"[{label}, Chunk {num}]: {text}")
+        start = chunk.get("start_time")
+        end = chunk.get("end_time")
+        time_str = f" ({start:.1f}s - {end:.1f}s)" if start is not None and end is not None else ""
+        lines.append(f"[{label}, Chunk {num}{time_str}]: {text}")
     return "\n\n".join(lines)
 
 

@@ -70,6 +70,12 @@ async def init_db():
         await conn.run_sync(Base.metadata.create_all)
         # Ensure transcript_source column exists on the videos table
         await conn.execute(text('ALTER TABLE videos ADD COLUMN IF NOT EXISTS transcript_source VARCHAR(50)'))
+        # Ensure transcript_status and hook_text columns exist on the videos table
+        await conn.execute(text('ALTER TABLE videos ADD COLUMN IF NOT EXISTS transcript_status VARCHAR(20)'))
+        await conn.execute(text('ALTER TABLE videos ADD COLUMN IF NOT EXISTS hook_text TEXT'))
+        # Ensure start_time and end_time columns exist on the transcript_chunks table
+        await conn.execute(text('ALTER TABLE transcript_chunks ADD COLUMN IF NOT EXISTS start_time DOUBLE PRECISION'))
+        await conn.execute(text('ALTER TABLE transcript_chunks ADD COLUMN IF NOT EXISTS end_time DOUBLE PRECISION'))
 
 
 async def check_db_connection() -> bool:

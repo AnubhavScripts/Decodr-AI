@@ -173,7 +173,7 @@ class InstagramProvider(BaseVideoProvider):
     #  Transcript                                                          #
     # ------------------------------------------------------------------ #
 
-    async def extract_transcript(self, url: str) -> str | None:
+    async def extract_transcript(self, url: str) -> list[dict] | None:
         """Instagram has no native transcript API — Whisper handles it upstream."""
         return None
 

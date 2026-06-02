@@ -55,19 +55,21 @@ class EmbeddingService:
     async def store_chunks(
         analysis_id: str,
         video_id: str,
-        chunks: list[str],
+        chunks: list[dict],
         embeddings: list[list[float]],
         db: AsyncSession,
     ) -> list[TranscriptChunk]:
         """Store transcript chunks with their embeddings in the database."""
         records = []
-        for i, (chunk_text, embedding) in enumerate(zip(chunks, embeddings)):
+        for i, (chunk_info, embedding) in enumerate(zip(chunks, embeddings)):
             chunk = TranscriptChunk(
                 analysis_id=analysis_id,
                 video_id=video_id,
                 chunk_number=i + 1,
-                chunk_text=chunk_text,
+                chunk_text=chunk_info["text"],
                 embedding=embedding,
+                start_time=chunk_info.get("start_time"),
+                end_time=chunk_info.get("end_time"),
             )
             db.add(chunk)
             records.append(chunk)
@@ -104,6 +106,8 @@ class EmbeddingService:
                 TranscriptChunk.video_id,
                 TranscriptChunk.chunk_number,
                 TranscriptChunk.chunk_text,
+                TranscriptChunk.start_time,
+                TranscriptChunk.end_time,
                 TranscriptChunk.embedding.cosine_distance(query_embedding).label(
                     "distance"
                 ),
@@ -125,6 +129,8 @@ class EmbeddingService:
                 "video_id": row.video_id,
                 "chunk_number": row.chunk_number,
                 "chunk_text": row.chunk_text,
+                "start_time": row.start_time,
+                "end_time": row.end_time,
                 "distance": float(row.distance),
             }
             for row in rows

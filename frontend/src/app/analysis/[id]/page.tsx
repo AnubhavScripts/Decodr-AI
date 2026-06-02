@@ -8,7 +8,7 @@ import VideoComparison from "@/components/video-comparison";
 import ChatInterface from "@/components/chat-interface";
 import {
   Zap, TrendingUp, Clock, Hash, BarChart2,
-  Sparkles, MessageSquare,
+  Sparkles, MessageSquare, AlertTriangle,
 } from "lucide-react";
 import { AnalysisSkeleton, ProcessingState, ErrorState } from "@/components/loading-states";
 
@@ -198,6 +198,22 @@ export default function AnalysisPage() {
       style={{ backgroundColor: "#f1f5f9", paddingTop: "84px" }}
     >
       <div className="max-w-[1400px] mx-auto space-y-8">
+
+        {/* Warning banner for partial success (missing transcripts) */}
+        {data.status === "partial_success" && (
+          <div className="bg-amber-50 border border-amber-200 text-amber-900 px-5 py-4 rounded-2xl flex items-start gap-3.5 shadow-sm animate-fade-in-up">
+            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+            <div className="text-xs space-y-1">
+              <p className="font-bold text-amber-800 uppercase tracking-wider">Partial Analysis Successful</p>
+              <p className="text-slate-600 font-medium">
+                {data.error_message || "Transcript unavailable due to platform restrictions."}
+              </p>
+              <p className="text-slate-500 font-semibold text-[10px]">
+                You can still view video metadata, compare performance/engagement metrics, and chat with the AI about stats. Semantic transcript search and hook breakdown are disabled for unavailable videos.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* ══════════════════════════════════════
             1. VIDEO COMPARISON CARD

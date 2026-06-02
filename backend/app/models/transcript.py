@@ -35,6 +35,8 @@ class TranscriptChunk(Base):
     chunk_number: Mapped[int] = mapped_column(Integer)
     chunk_text: Mapped[str] = mapped_column(Text)
     embedding = mapped_column(Vector(settings.EMBEDDING_DIMENSION))
+    start_time: Mapped[float | None] = mapped_column(nullable=True)
+    end_time: Mapped[float | None] = mapped_column(nullable=True)
 
     # Relationships
     video: Mapped["Video"] = relationship(  # noqa: F821

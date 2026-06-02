@@ -153,7 +153,7 @@ async def chat(request: ChatRequest):
             if not session:
                 yield _sse_event("error", "Analysis not found")
                 return
-            if session.status != "completed":
+            if session.status not in ("completed", "partial_success"):
                 yield _sse_event(
                     "error",
                     f"Analysis is still {session.status}. Please wait."

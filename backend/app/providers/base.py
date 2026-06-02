@@ -44,10 +44,11 @@ class BaseVideoProvider(ABC):
         ...
 
     @abstractmethod
-    async def extract_transcript(self, url: str) -> str | None:
+    async def extract_transcript(self, url: str) -> list[dict] | None:
         """
-        Extract transcript text if available natively.
+        Extract transcript segments if available natively.
         Returns None if no native transcript exists (fallback to whisper).
+        Each segment is a dict: {"text": str, "start": float, "end": float}
         """
         ...
 

@@ -35,7 +35,7 @@ class Settings(BaseSettings):
         return self.EMBEDDING_MODEL
 
     # Whisper
-    WHISPER_MODEL: str = "small"
+    WHISPER_MODEL: str = "tiny"
     WHISPER_COMPUTE_TYPE: str = "int8"
 
     # Chunking

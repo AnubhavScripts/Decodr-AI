@@ -26,6 +26,8 @@ async def citations_node(state: AgentState) -> dict:
                 "chunk_text_preview": chunk.get("chunk_text", "")[:150],
                 "video_id": chunk.get("video_id", ""),
                 "relevance_distance": chunk.get("distance", 1.0),
+                "start_time": chunk.get("start_time"),
+                "end_time": chunk.get("end_time"),
             })
 
     logger.info(f"Generated {len(citations)} citations")

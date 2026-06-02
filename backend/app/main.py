@@ -26,6 +26,14 @@ async def lifespan(app: FastAPI):
     # ── Startup ──
     logger.info("Starting Decodr.ai backend...")
 
+    # Validate instaloader dependency is installed
+    try:
+        import instaloader  # noqa: F401
+        logger.info("Instaloader package verified successfully.")
+    except ImportError:
+        logger.error("CRITICAL: 'instaloader' dependency is missing!")
+        raise RuntimeError("CRITICAL: 'instaloader' dependency is missing!")
+
     # Initialize database (create tables, extensions)
     await init_db()
     logger.info("Database initialized.")

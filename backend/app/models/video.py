@@ -49,6 +49,8 @@ class Video(Base):
     # Transcript
     transcript_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     transcript_source: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    transcript_status: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    hook_text: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Engagement metrics (computed)
     engagement_rate: Mapped[float] = mapped_column(Float, default=0.0)

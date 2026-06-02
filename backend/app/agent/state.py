@@ -1,6 +1,6 @@
 """LangGraph state definition for the Decodr.ai RAG agent."""
 
-from typing import Annotated, TypedDict
+from typing import Annotated, TypedDict, Any
 from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage
 
@@ -18,7 +18,7 @@ class AgentState(TypedDict):
 
     # Session context
     analysis_id: str
-    db_session: object  # AsyncSession — passed through for DB access
+    db_session: Any  # AsyncSession — passed through for DB access
 
     # Intent routing
     intent: str  # metadata_only | transcript_search | comparison | hooks | recommendations

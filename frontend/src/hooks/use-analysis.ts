@@ -18,9 +18,10 @@ export function useAnalysis(analysisId: string) {
       setData(result);
       setError(null);
 
-      // Stop polling when complete or failed
+      // Stop polling when complete, partial success, or failed
       if (
         result.status === "completed" ||
+        result.status === "partial_success" ||
         result.status === "failed"
       ) {
         if (intervalRef.current) {
