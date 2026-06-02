@@ -513,4 +513,26 @@ If vector volume exceeds ~50M rows or if query latency at the 99th percentile ex
 - **Connection pooling:** PgBouncer in front of Supabase for connection management at scale
 - **CDN:** Vercel handles frontend CDN automatically. Consider caching `/analysis/{id}` responses for completed analyses
 - **Data retention:** Implement TTL on analyses to manage storage growth. Audio files are already cleaned up after transcription.
-# Decodr-AI
+
+### YouTube Transcript & Audio Retrieval Limitations
+
+A practical limitation encountered during deployment is YouTube's anti-bot protection on cloud-hosted environments.
+
+While transcript extraction and audio downloads generally work during local development, cloud providers such as Render, Railway, AWS, GCP, and Azure frequently use IP ranges that are flagged by YouTube. As a result:
+
+* `youtube-transcript-api` may return IP blocked or request blocked errors.
+* `yt-dlp` may return "Sign in to confirm you're not a bot" errors.
+* Some videos may therefore be unable to provide transcripts even when metadata remains accessible.
+
+To handle this gracefully, Decodr.ai implements a degradation strategy:
+
+1. Attempt native transcript retrieval.
+2. Attempt audio download and transcription fallback.
+3. If transcript retrieval fails entirely, continue processing metadata.
+4. Mark the analysis session as `partial_success`.
+5. Allow metadata-based comparisons and chat functionality to continue operating.
+
+This ensures that creator analytics, engagement calculations, and metadata-driven insights remain available even when transcript retrieval is restricted by platform-level protections.
+
+For authenticated retrieval, optional YouTube cookies can be configured in self-hosted deployments. Cookies are intentionally not bundled with the application and are not required for core functionality.
+
