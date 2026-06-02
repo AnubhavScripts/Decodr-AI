@@ -29,10 +29,10 @@ async def _get_embeddings_client():
 
         from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
-        logger.info("Initializing Google GenAI embeddings client (models/text-embedding-004)...")
+        logger.info(f"Initializing Google GenAI embeddings client ({settings.resolved_embedding_model})...")
         _embeddings_client = GoogleGenerativeAIEmbeddings(
-            model="models/text-embedding-004",
-            google_api_key=settings.GOOGLE_API_KEY,
+            model=settings.resolved_embedding_model,
+            google_api_key=settings.GOOGLE_API_KEY,  # type: ignore
             output_dimensionality=settings.EMBEDDING_DIMENSION,  # e.g., 384
         )
         logger.info("Google GenAI embeddings client initialized.")

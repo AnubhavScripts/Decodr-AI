@@ -125,13 +125,15 @@ class IngestionService:
 
             # 5. Extract transcripts concurrently
             logger.info(f"[{analysis_id}] Extracting transcripts...")
-            transcript_a, transcript_b = await asyncio.gather(
+            (transcript_a, source_a), (transcript_b, source_b) = await asyncio.gather(
                 TranscriptService.extract(provider_a, url_a),
                 TranscriptService.extract(provider_b, url_b),
             )
 
             video_a.transcript_text = transcript_a
+            video_a.transcript_source = source_a
             video_b.transcript_text = transcript_b
+            video_b.transcript_source = source_b
 
             # 6. Chunk transcripts
             logger.info(f"[{analysis_id}] Chunking transcripts...")

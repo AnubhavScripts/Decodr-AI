@@ -1,4 +1,4 @@
-"""Transcript extraction, whisper fallback, and chunking pipeline."""
+"""Transcript extraction, AssemblyAI fallback, and chunking pipeline."""
 
 import os
 import asyncio
@@ -13,60 +13,50 @@ from app.providers.base import BaseVideoProvider
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
-# Lazy-loaded whisper model (heavy — only load once and only when needed)
-_whisper_model = None
-_whisper_lock = asyncio.Lock()
-
-
-async def _get_whisper_model():
-    """Load faster-whisper model lazily and cache it."""
-    global _whisper_model
-    if _whisper_model is not None:
-        return _whisper_model
-
-    async with _whisper_lock:
-        # Double-check after acquiring lock
-        if _whisper_model is not None:
-            return _whisper_model
-
-        from faster_whisper import WhisperModel
-
-        def _load():
-            return WhisperModel(
-                settings.WHISPER_MODEL,
-                device="auto",
-                compute_type=settings.WHISPER_COMPUTE_TYPE,
-            )
-
-        logger.info(f"Loading Whisper model '{settings.WHISPER_MODEL}'...")
-        _whisper_model = await asyncio.to_thread(_load)
-        logger.info("Whisper model loaded.")
-        return _whisper_model
-
 
 class TranscriptService:
-    """Handles transcript extraction with provider-native → whisper fallback, plus chunking."""
+    """Handles transcript extraction with provider-native → AssemblyAI fallback, plus chunking."""
 
     @staticmethod
-    async def extract(provider: BaseVideoProvider, url: str) -> str:
+    async def extract(provider: BaseVideoProvider, url: str) -> tuple[str, str]:
         """
-        Extract transcript text.
+        Extract transcript text and the source.
         1. Try the provider's native transcript API.
-        2. Fall back to downloading audio + running faster-whisper.
+        2. Fall back to downloading audio + running AssemblyAI.
+        3. Drop back to empty transcript ("metadata_only").
         """
         # Try native transcript first
-        transcript = await provider.extract_transcript(url)
-        if transcript:
-            logger.info(f"Got native transcript for {url} ({len(transcript)} chars)")
-            return transcript
+        try:
+            transcript = await provider.extract_transcript(url)
+            if transcript and transcript.strip():
+                logger.info(f"Got native transcript for {url} ({len(transcript)} chars)")
+                # YouTube is the only one with native transcript API in our app
+                is_youtube = "youtube" in url.lower() or "youtu.be" in url.lower()
+                source = "youtube_transcript_api" if is_youtube else "assemblyai"
+                return transcript.strip(), source
+        except Exception as e:
+            logger.warning(f"Native transcript API failed for {url}: {e}")
 
-        # Fallback: download audio → whisper
-        logger.info(f"No native transcript — falling back to Whisper for {url}")
-        return await TranscriptService._whisper_transcribe(provider, url)
+        # Fallback: download audio → AssemblyAI
+        logger.info(f"No native transcript — falling back to AssemblyAI for {url}")
+        text, source = await TranscriptService._assemblyai_transcribe(provider, url)
+        return text, source
+
+    @classmethod
+    async def get_transcript(cls, url: str) -> str:
+        """Get transcript text for a URL by automatically detecting the provider."""
+        from app.providers.registry import ProviderRegistry
+        try:
+            provider = ProviderRegistry.detect(url)
+            text, _source = await cls.extract(provider, url)
+            return text
+        except Exception as e:
+            logger.error(f"get_transcript failed for {url}: {e}")
+            return ""
 
     @staticmethod
-    async def _whisper_transcribe(provider: BaseVideoProvider, url: str) -> str:
-        """Download audio and transcribe with faster-whisper."""
+    async def _assemblyai_transcribe(provider: BaseVideoProvider, url: str) -> tuple[str, str]:
+        """Download audio and transcribe with AssemblyAI."""
         # Ensure temp directory exists
         tmp_dir = Path(settings.AUDIO_TMP_DIR)
         tmp_dir.mkdir(parents=True, exist_ok=True)
@@ -81,7 +71,7 @@ class TranscriptService:
             if not os.path.exists(audio_path):
                 # yt-dlp might have used a different extension
                 base = os.path.splitext(audio_path)[0]
-                for ext in [".wav", ".m4a", ".mp3", ".webm", ".opus", ".ogg"]:
+                for ext in [".wav", ".m4a", ".mp3", ".webm", ".opus", ".ogg", ".mp4"]:
                     candidate = base + ext
                     if os.path.exists(candidate):
                         audio_path = candidate
@@ -89,43 +79,56 @@ class TranscriptService:
 
             if not os.path.exists(audio_path):
                 logger.error(f"Audio file not found at {audio_path}")
-                return ""
+                return "", "metadata_only"
 
-            # Preflight: faster-whisper needs ffmpeg to decode mp4/webm/m4a etc.
-            import shutil
-            if not shutil.which("ffmpeg"):
-                logger.error(
-                    "ffmpeg is not installed — faster-whisper cannot decode audio files. "
-                    "Fix: brew install ffmpeg  (or apt install ffmpeg on Linux)"
-                )
-                return ""
+            # Check for API key
+            if not settings.ASSEMBLYAI_API_KEY:
+                logger.warning("ASSEMBLYAI_API_KEY is not configured. Falling back to metadata_only.")
+                return "", "metadata_only"
 
-            # Transcribe
-            model = await _get_whisper_model()
-
+            import assemblyai as aai
+            
             def _transcribe():
-                segments, _info = model.transcribe(
-                    audio_path,
-                    beam_size=5,
-                    language="en",
-                )
-                return " ".join(seg.text.strip() for seg in segments)
+                aai.settings.api_key = settings.ASSEMBLYAI_API_KEY
+                transcriber = aai.Transcriber()
+                transcript = transcriber.transcribe(audio_path)
+                
+                # Check status
+                if transcript.status == aai.TranscriptStatus.error:
+                    logger.error(f"AssemblyAI transcription error: {transcript.error}")
+                    return ""
+                
+                return transcript.text or ""
 
-            transcript = await asyncio.to_thread(_transcribe)
-            logger.info(f"Whisper transcript: {len(transcript)} chars")
-            return transcript
+            # Wrap in timeout of 90 seconds
+            async def _run_assembly():
+                return await asyncio.to_thread(_transcribe)
+
+            try:
+                transcript_text = await asyncio.wait_for(_run_assembly(), timeout=90.0)
+            except asyncio.TimeoutError:
+                logger.warning(f"AssemblyAI transcription timed out (90s limit) for {url}")
+                return "", "metadata_only"
+
+            if transcript_text and transcript_text.strip():
+                logger.info(f"AssemblyAI transcript: {len(transcript_text)} chars")
+                return transcript_text.strip(), "assemblyai"
+            else:
+                logger.warning(f"AssemblyAI returned empty transcript for {url}")
+                return "", "metadata_only"
 
         except Exception as e:
-            logger.error(f"Whisper transcription failed for {url}: {e}")
-            return ""
+            logger.error(f"AssemblyAI transcription failed for {url}: {e}")
+            return "", "metadata_only"
 
         finally:
             # Clean up audio file
             if audio_path and os.path.exists(audio_path):
                 try:
                     os.remove(audio_path)
-                except OSError:
-                    pass
+                    logger.info(f"Cleaned up temporary audio file: {audio_path}")
+                except OSError as e:
+                    logger.warning(f"Failed to delete temp file {audio_path}: {e}")
 
     @staticmethod
     def chunk(text: str) -> list[str]:

@@ -68,6 +68,8 @@ async def init_db():
         await conn.execute(text('CREATE EXTENSION IF NOT EXISTS vector'))
         await conn.execute(text('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"'))
         await conn.run_sync(Base.metadata.create_all)
+        # Ensure transcript_source column exists on the videos table
+        await conn.execute(text('ALTER TABLE videos ADD COLUMN IF NOT EXISTS transcript_source VARCHAR(50)'))
 
 
 async def check_db_connection() -> bool:

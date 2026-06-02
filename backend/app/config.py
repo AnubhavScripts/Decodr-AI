@@ -20,9 +20,19 @@ class Settings(BaseSettings):
     def youtube_key(self) -> str:
         return self.YOUTUBE_API_KEY or self.GOOGLE_API_KEY
 
+    # AssemblyAI API
+    ASSEMBLYAI_API_KEY: str = ""
+
     # Embeddings
-    EMBEDDING_MODEL: str = "models/text-embedding-004"
+    EMBEDDING_MODEL: str = "models/gemini-embedding-2"
     EMBEDDING_DIMENSION: int = 384
+
+    @property
+    def resolved_embedding_model(self) -> str:
+        # Fallback to Google model if legacy local model is configured
+        if "bge-" in self.EMBEDDING_MODEL or "/" in self.EMBEDDING_MODEL or "sentence-transformers" in self.EMBEDDING_MODEL:
+            return "models/gemini-embedding-2"
+        return self.EMBEDDING_MODEL
 
     # Whisper
     WHISPER_MODEL: str = "small"
