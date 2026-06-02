@@ -1,4 +1,4 @@
-"""Embedding generation and vector storage/retrieval using Google GenAI + pgvector."""
+"""Embedding generation and vector storage/retrieval using FastEmbed + pgvector."""
 
 import asyncio
 import logging
@@ -18,7 +18,7 @@ _client_lock = asyncio.Lock()
 
 
 async def _get_embeddings_client():
-    """Lazily initialize the SentenceTransformer client."""
+    """Lazily initialize the FastEmbed TextEmbedding client."""
     global _embeddings_client
     if _embeddings_client is not None:
         return _embeddings_client
@@ -27,14 +27,14 @@ async def _get_embeddings_client():
         if _embeddings_client is not None:
             return _embeddings_client
 
-        from sentence_transformers import SentenceTransformer
+        from fastembed import TextEmbedding
 
-        logger.info(f"Loading SentenceTransformer model '{settings.EMBEDDING_MODEL}'...")
+        logger.info(f"Loading FastEmbed model '{settings.EMBEDDING_MODEL}'...")
         def _load():
-            return SentenceTransformer(settings.EMBEDDING_MODEL, device="cpu")
+            return TextEmbedding(model_name=settings.EMBEDDING_MODEL)
 
         _embeddings_client = await asyncio.to_thread(_load)
-        logger.info("SentenceTransformer model loaded.")
+        logger.info("FastEmbed model loaded.")
         return _embeddings_client
 
 
@@ -50,7 +50,7 @@ class EmbeddingService:
         client = await _get_embeddings_client()
         
         def _encode():
-            return client.encode(texts, convert_to_numpy=True).tolist()
+            return [embedding.tolist() for embedding in client.embed(texts)]
 
         return await asyncio.to_thread(_encode)
 
