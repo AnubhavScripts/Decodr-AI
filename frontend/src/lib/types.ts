@@ -44,7 +44,7 @@ export interface AnalysisDetail {
 
 export interface ChatStreamEvent {
   type: "token" | "citation" | "citations" | "status" | "session" | "done" | "error";
-  content: string;
+  content: any;
 }
 
 export interface Citation {
