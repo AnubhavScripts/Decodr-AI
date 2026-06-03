@@ -149,7 +149,7 @@ class TranscriptService:
                 async def _run_assembly_with_timeout():
                     return await asyncio.to_thread(_assembly_run)
 
-                assembly_segments = await asyncio.wait_for(_run_assembly_with_timeout(), timeout=90.0)
+                assembly_segments = await asyncio.wait_for(_run_assembly_with_timeout(), timeout=300.0)
                 if assembly_segments:
                     full_text = ""
                     segment_offsets = []
@@ -210,7 +210,7 @@ class TranscriptService:
             async def _run_whisper_with_timeout():
                 return await asyncio.to_thread(_whisper_run)
 
-            whisper_segments = await asyncio.wait_for(_run_whisper_with_timeout(), timeout=45.0)
+            whisper_segments = await asyncio.wait_for(_run_whisper_with_timeout(), timeout=180.0)
             if whisper_segments:
                 full_text = ""
                 segment_offsets = []

@@ -44,6 +44,10 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Database initialization failed: {e}. The app will continue, but database features may be unavailable.")
 
+    # Ensure audio temp directory exists at startup to prevent Uvicorn reload triggers
+    import os
+    os.makedirs(settings.AUDIO_TMP_DIR, exist_ok=True)
+
     # Start preloading embedding model in the background so it is ready for the first request
     from app.services.embedding import EmbeddingService
     asyncio.create_task(EmbeddingService.preload_model())

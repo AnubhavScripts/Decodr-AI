@@ -9,7 +9,7 @@ docker-compose up -d
 # 2. Start Backend
 echo "⚙️  Starting FastAPI Backend on port 8023..."
 cd backend
-./venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8023 &
+./venv/bin/uvicorn app.main:app --reload --reload-exclude "audio_tmp/*" --host 0.0.0.0 --port 8023 &
 BACKEND_PID=$!
 cd ..
 
