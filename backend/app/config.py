@@ -12,6 +12,7 @@ class Settings(BaseSettings):
 
     # LLM
     GOOGLE_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-3.5-flash"
 
     # YouTube Data API
     YOUTUBE_API_KEY: str = ""

@@ -37,7 +37,7 @@ async def comparison_node(state: AgentState) -> dict:
     transcript_context = _format_transcript_context(chunks)
 
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
+        model=settings.GEMINI_MODEL,
         google_api_key=settings.GOOGLE_API_KEY,
         temperature=0.3,
     )

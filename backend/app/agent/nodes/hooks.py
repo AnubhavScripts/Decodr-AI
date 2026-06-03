@@ -49,7 +49,7 @@ async def hooks_node(state: AgentState) -> dict:
         return {"hook_analysis": "No transcript data available for hook analysis."}
 
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
+        model=settings.GEMINI_MODEL,
         google_api_key=settings.GOOGLE_API_KEY,
         temperature=0.3,
     )

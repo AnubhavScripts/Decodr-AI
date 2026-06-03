@@ -66,7 +66,7 @@ async def answer_node(state: AgentState) -> dict:
     additional_context = _build_additional_context(state)
 
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
+        model=settings.GEMINI_MODEL,
         google_api_key=settings.GOOGLE_API_KEY,
         temperature=0.4,
         streaming=True,
