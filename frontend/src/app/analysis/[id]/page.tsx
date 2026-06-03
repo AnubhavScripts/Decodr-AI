@@ -24,68 +24,7 @@ function SectionLabel({ dot, children }: { dot: string; children: React.ReactNod
   );
 }
 
-/* ── Insight chip ── */
-function InsightChip({
-  icon,
-  label,
-  value,
-  color,
-  bg,
-  borderColor,
-  iconBg,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  color: string;
-  bg: string;
-  borderColor: string;
-  iconBg: string;
-}) {
-  return (
-    <div
-      className="bg-white rounded-2xl border overflow-hidden"
-      style={{
-        borderColor,
-        boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
-        transition: "transform 0.22s ease, box-shadow 0.22s ease",
-      }}
-      onMouseEnter={(e) => {
-        const el = e.currentTarget as HTMLDivElement;
-        el.style.transform = "translateY(-3px)";
-        el.style.boxShadow = `0 10px 28px rgba(0,0,0,0.09)`;
-      }}
-      onMouseLeave={(e) => {
-        const el = e.currentTarget as HTMLDivElement;
-        el.style.transform = "translateY(0)";
-        el.style.boxShadow = "0 2px 12px rgba(0,0,0,0.05)";
-      }}
-    >
-      {/* Colored top strip */}
-      <div className="h-1 w-full" style={{ background: `linear-gradient(90deg, ${color}, ${borderColor})` }} />
 
-      <div className="px-5 py-4 flex items-center gap-4">
-        {/* Icon box */}
-        <div
-          className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-          style={{ background: iconBg }}
-        >
-          <span style={{ color }}>{icon}</span>
-        </div>
-
-        {/* Text */}
-        <div className="min-w-0 flex-1">
-          <p className="text-[9.5px] font-black uppercase tracking-widest text-slate-400 mb-1 select-none">
-            {label}
-          </p>
-          <p className="text-[14px] font-extrabold leading-tight" style={{ color }}>
-            {value}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 
 /* ════════════════════════════════════════════════════════
@@ -148,42 +87,7 @@ export default function AnalysisPage() {
   const videoB = data.videos.find((v) => v.video_label === "B");
   const userMessages = messages.filter((m) => m.role === "user");
 
-  const betterHook =
-    videoA && videoB ? (videoA.engagement_rate > videoB.engagement_rate ? "Video A" : "Video B") : "Video A";
-  const higherRetention =
-    videoA && videoB ? (videoA.engagement_rate > videoB.engagement_rate ? "Video A" : "Video B") : "Video B";
-  const tighterPacing =
-    videoA && videoB ? (videoA.duration < videoB.duration ? "Video A" : "Video B") : "Video A";
 
-  const INSIGHTS = [
-    {
-      icon: <Zap className="w-5 h-5" />,
-      label: "Better Hook",
-      value: `${betterHook} — First 3s`,
-      color: "#7c3aed",
-      bg: "#f5f3ff",
-      iconBg: "#ede9fe",
-      borderColor: "#ddd6fe",
-    },
-    {
-      icon: <TrendingUp className="w-5 h-5" />,
-      label: "Higher Retention",
-      value: `${higherRetention} — 65% at 30s`,
-      color: "#2563eb",
-      bg: "#eff6ff",
-      iconBg: "#dbeafe",
-      borderColor: "#bfdbfe",
-    },
-    {
-      icon: <Clock className="w-5 h-5" />,
-      label: "Pacing",
-      value: `${tighterPacing} is 15% faster`,
-      color: "#0d9488",
-      bg: "#f0fdfa",
-      iconBg: "#ccfbf1",
-      borderColor: "#99f6e4",
-    },
-  ];
 
   const tags =
     userMessages.length === 0
@@ -248,22 +152,7 @@ export default function AnalysisPage() {
           </div>
         </div>
 
-        {/* ── 2. INSIGHT CHIPS ── */}
-        <div className="space-y-4">
-          <SectionLabel dot="#34d399">Key Insights</SectionLabel>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {INSIGHTS.map((c, i) => (
-              <div
-                key={c.label}
-                className="animate-fade-in-up"
-                style={{ animationDelay: `${i * 70}ms`, opacity: 0 }}
-              >
-                <InsightChip {...c} />
-              </div>
-            ))}
-          </div>
-        </div>
 
         {/* ── 3. AI CHAT ── */}
         <div

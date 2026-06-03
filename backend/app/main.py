@@ -44,8 +44,10 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Database initialization failed: {e}. The app will continue, but database features may be unavailable.")
 
-    # Embedding model loads lazily on first use to conserve startup memory
-    logger.info("Embedding service configured for lazy loading.")
+    # Start preloading embedding model in the background so it is ready for the first request
+    from app.services.embedding import EmbeddingService
+    asyncio.create_task(EmbeddingService.preload_model())
+    logger.info("Embedding service preloading initiated in the background.")
 
     logger.info("Decodr.ai backend ready!")
     yield
