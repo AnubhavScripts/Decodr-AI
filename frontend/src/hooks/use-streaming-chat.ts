@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { api } from "@/lib/api";
 import { generateId } from "@/lib/utils";
 import type { ChatMessage, Citation, ChatStreamEvent } from "@/lib/types";
@@ -14,6 +14,40 @@ export function useStreamingChat(analysisId: string) {
   const [error, setError] = useState<string | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Load chat history on mount or when analysisId changes
+  const loadHistory = useCallback(async () => {
+    if (!analysisId) return;
+    try {
+      const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8023/api";
+      const trimmedApiUrl = rawApiUrl.endsWith("/") ? rawApiUrl.slice(0, -1) : rawApiUrl;
+      const apiBase = trimmedApiUrl.endsWith("/api") ? trimmedApiUrl : `${trimmedApiUrl}/api`;
+
+      const response = await fetch(`${apiBase}/chat/history/${analysisId}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.session_id) {
+          sessionIdRef.current = data.session_id;
+        }
+        if (data.messages) {
+          const formatted = data.messages.map((msg: any) => ({
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            citations: msg.citations || undefined,
+          }));
+          setMessages(formatted);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load chat history:", err);
+    }
+  }, [analysisId]);
+
+  useEffect(() => {
+    loadHistory();
+  }, [analysisId, loadHistory]);
+
 
   const sendMessage = useCallback(
     async (content: string) => {

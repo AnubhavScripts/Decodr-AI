@@ -22,7 +22,7 @@ from app.schemas.analysis import (
     AnalysisDetailResponse,
     VideoSummary,
 )
-from app.schemas.chat import ChatRequest
+from app.schemas.chat import ChatRequest, ChatHistoryResponse
 from app.schemas.common import HealthResponse, ErrorResponse
 from app.services.ingestion import IngestionService
 from app.providers.registry import ProviderRegistry, UnsupportedPlatformError
@@ -134,6 +134,45 @@ async def get_analysis(
         created_at=str(session.created_at),
         updated_at=str(session.updated_at),
         videos=videos,
+    )
+
+
+# ──────────────────────────────────────────────
+# GET /chat/history/{analysis_id}
+# ──────────────────────────────────────────────
+@router.get("/chat/history/{analysis_id}", response_model=ChatHistoryResponse)
+async def get_chat_history(
+    analysis_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Retrieve the latest chat session and its message history for an analysis session."""
+    # Find the latest chat session for this analysis session
+    stmt = (
+        select(ChatSession)
+        .where(ChatSession.analysis_id == analysis_id)
+        .order_by(ChatSession.created_at.desc())
+        .options(selectinload(ChatSession.messages))
+    )
+    result = await db.execute(stmt)
+    chat_session = result.scalars().first()
+
+    if not chat_session:
+        return ChatHistoryResponse(session_id=None, messages=[])
+
+    # Format the messages
+    formatted_messages = []
+    for msg in chat_session.messages:
+        formatted_messages.append({
+            "id": msg.id,
+            "role": msg.role,
+            "content": msg.content,
+            "citations": msg.citations,
+            "created_at": msg.created_at.isoformat() if msg.created_at else None,
+        })
+
+    return ChatHistoryResponse(
+        session_id=chat_session.id,
+        messages=formatted_messages,
     )
 
 

@@ -15,3 +15,19 @@ class ChatStreamEvent(BaseModel):
     type: str  # token | citation | status | done | error
     content: str = ""
     citations: list[dict] | None = None
+
+
+class ChatMessageResponse(BaseModel):
+    """Single chat message in the history."""
+    id: str
+    role: str
+    content: str
+    citations: list[dict] | None = None
+    created_at: str | None = None
+
+
+class ChatHistoryResponse(BaseModel):
+    """Response containing chat session ID and messages."""
+    session_id: str | None = None
+    messages: list[ChatMessageResponse]
+
