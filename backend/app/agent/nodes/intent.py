@@ -22,9 +22,11 @@ async def intent_node(state: AgentState) -> dict:
         temperature=0,
     )
 
+    from app.agent.utils import extract_text
+
     chain = INTENT_PROMPT | llm
     result = await chain.ainvoke({"question": last_message})
-    intent_str = result.content if isinstance(result.content, str) else ""
+    intent_str = extract_text(result.content)
     intent = intent_str.strip().lower()
 
     # Validate intent

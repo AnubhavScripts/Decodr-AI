@@ -42,6 +42,8 @@ async def comparison_node(state: AgentState) -> dict:
         temperature=0.3,
     )
 
+    from app.agent.utils import extract_text
+
     chain = COMPARISON_PROMPT | llm
     result = await chain.ainvoke({
         "video_a_title": video_a.get("title", "Video A"),
@@ -64,4 +66,4 @@ async def comparison_node(state: AgentState) -> dict:
     })
 
     logger.info("Comparison analysis completed")
-    return {"comparison_result": result.content}
+    return {"comparison_result": extract_text(result.content)}

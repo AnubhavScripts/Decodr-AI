@@ -74,6 +74,8 @@ async def answer_node(state: AgentState) -> dict:
 
     chain = ANSWER_PROMPT | llm
 
+    from app.agent.utils import extract_text
+
     result = await chain.ainvoke({
         "video_a_title": video_a.get("title", "Video A"),
         "video_a_creator": video_a.get("creator", "Unknown"),
@@ -97,7 +99,8 @@ async def answer_node(state: AgentState) -> dict:
         "messages": state["messages"],
     })
 
+    answer_text = extract_text(result.content)
     return {
-        "final_answer": result.content,
-        "messages": [AIMessage(content=result.content)],
+        "final_answer": answer_text,
+        "messages": [AIMessage(content=answer_text)],
     }

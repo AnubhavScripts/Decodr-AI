@@ -54,6 +54,8 @@ async def hooks_node(state: AgentState) -> dict:
         temperature=0.3,
     )
 
+    from app.agent.utils import extract_text
+
     chain = HOOK_ANALYSIS_PROMPT | llm
     result = await chain.ainvoke({
         "video_a_title": video_a.get("title", "Video A"),
@@ -65,4 +67,4 @@ async def hooks_node(state: AgentState) -> dict:
     })
 
     logger.info("Hook analysis completed")
-    return {"hook_analysis": result.content}
+    return {"hook_analysis": extract_text(result.content)}

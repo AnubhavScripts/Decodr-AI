@@ -26,6 +26,8 @@ async def recommendations_node(state: AgentState) -> dict:
         temperature=0.4,
     )
 
+    from app.agent.utils import extract_text
+
     chain = RECOMMENDATIONS_PROMPT | llm
     result = await chain.ainvoke({
         "video_a_title": video_a.get("title", "Video A"),
@@ -42,4 +44,4 @@ async def recommendations_node(state: AgentState) -> dict:
     })
 
     logger.info("Recommendations generated")
-    return {"recommendations": result.content}
+    return {"recommendations": extract_text(result.content)}
