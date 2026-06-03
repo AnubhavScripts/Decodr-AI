@@ -138,7 +138,23 @@ export function useStreamingChat(analysisId: string) {
                   break;
 
                 case "token":
-                  fullContent += event.content;
+                  let tokenText = "";
+                  if (typeof event.content === "string") {
+                    tokenText = event.content;
+                  } else if (Array.isArray(event.content)) {
+                    tokenText = event.content
+                      .map((part) => {
+                        if (typeof part === "string") return part;
+                        if (part && typeof part === "object" && "text" in part) return String(part.text);
+                        return "";
+                      })
+                      .join("");
+                  } else if (event.content && typeof event.content === "object" && "text" in event.content) {
+                    tokenText = String((event.content as any).text);
+                  } else {
+                    tokenText = String(event.content || "");
+                  }
+                  fullContent += tokenText;
                   setMessages((prev) =>
                     prev.map((m) =>
                       m.id === assistantId

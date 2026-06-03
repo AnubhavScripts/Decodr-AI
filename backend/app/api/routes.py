@@ -299,7 +299,10 @@ async def chat(request: ChatRequest):
                     ):
                         chunk = event.get("data", {}).get("chunk")
                         if chunk and hasattr(chunk, "content") and chunk.content:
-                            yield _sse_event("token", chunk.content)
+                            from app.agent.utils import extract_text
+                            token_text = extract_text(chunk.content)
+                            if token_text:
+                                yield _sse_event("token", token_text)
 
                     # Capture final state
                     if kind == "on_chain_end" and name == "LangGraph":
