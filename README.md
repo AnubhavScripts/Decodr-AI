@@ -1,8 +1,28 @@
 # Decodr.ai — Creator Intelligence Platform
 
-A production-grade full-stack application for comparing social media videos with an AI-powered RAG chatbot. Built for creators, agencies, and anyone who wants to understand what makes one video outperform another.
+Paste two video URLs. Get a full breakdown of why one outperforms the other.
 
-Users paste two video URLs. The platform extracts metadata, transcripts, and engagement metrics automatically. Then they can chat with an AI analyst that uses LangGraph-powered retrieval-augmented generation to answer questions about hooks, content strategy, engagement, and storytelling — backed by actual transcript data with source citations.
+Decodr.ai extracts metadata, engagement stats, and transcripts from YouTube and Instagram videos, then lets you have a real conversation with an AI analyst about what's working and what isn't. The chat is backed by actual transcript content — so when it says "Video A has a stronger hook", it can cite the exact moment in the transcript.
+
+Built with FastAPI, Next.js 15, LangGraph, and PostgreSQL + pgvector. Deployed on Railway + Vercel.
+
+---
+
+## What's covered (challenge requirement checklist)
+
+For reviewers going through the spec:
+
+* **Metadata extraction** — views, likes, comments, creator details, follower count. YouTube goes through the Data API v3 with a yt-dlp fallback. Instagram uses instaloader.
+* **Engagement rate calculation** — both view-based and follower-based ratios are computed and stored.
+* **Transcript extraction** — three-tier fallback: native YouTube captions → AssemblyAI cloud transcription → local faster-whisper. Fully automatic, no manual input.
+* **Chunking and embeddings** — transcripts are split into overlapping chunks and embedded locally using `BAAI/bge-small-en-v1.5` via FastEmbed. No API calls, no cost.
+* **pgvector retrieval** — similarity search runs directly in PostgreSQL using the `pgvector` extension.
+* **RAG chatbot** — LangGraph agent with intent-based routing. Simple stat questions skip retrieval entirely. Complex questions run vector search, hook analysis, and comparison before answering.
+* **Source citations** — every AI answer includes timestamped transcript references showing exactly where the answer came from.
+* **Conversational memory** — chat history is persisted in the DB. Continuing a conversation picks up where you left off.
+* **Streaming (SSE)** — tokens stream to the frontend in real-time via Server-Sent Events.
+* **Side-by-side UI** — video cards, metrics, engagement data, and transcript viewer all in one layout.
+* **Graceful degradation** — if transcripts can't be retrieved (bot detection, disabled captions, etc.), the session is marked `partial_success` instead of failing. Metadata comparison and chat still work.
 
 ---
 
@@ -34,9 +54,9 @@ Users paste two video URLs. The platform extracts metadata, transcripts, and eng
 │  │ │YouTube │  │ │ │ YT-Trans │ │  │       │           │        │  │
 │  │ │Provider│  │ │ │   API    │ │  │  ┌────▼───┐ ┌─────▼─────┐  │  │
 │  │ ├────────┤  │ │ ├──────────┤ │  │  │Metadata│ │  Hooks /  │  │  │
-│  │ │  Insta │  │ │ │ Faster   │ │  │  │Retrieve│ │Comparison │  │  │
-│  │ │Provider│  │ │ │ Whisper  │ │  │  └────┬───┘ └─────┬─────┘  │  │
-│  │ └────────┘  │ │ └──────────┘ │  │       │           │        │  │
+│  │ │  Insta │  │ │ │AssemblyAI│ │  │  │Retrieve│ │Comparison │  │  │
+│  │ │Provider│  │ │ ├──────────┤ │  │  └────┬───┘ └─────┬─────┘  │  │
+│  │ └────────┘  │ │ │ Whisper  │ │  │       │           │        │  │
 │  └─────────────┘ └──────────────┘  │  ┌────▼───────────▼─────┐  │  │
 │                                    │  │   Answer Generator    │  │  │
 │                                    │  │  (Gemini 2.5 Flash)   │  │  │
@@ -55,21 +75,19 @@ Users paste two video URLs. The platform extracts metadata, transcripts, and eng
 
 ---
 
-## System Design
+## How it's designed
 
-### Why This Architecture
+### The three layers
 
-I designed Decodr.ai as a clean separation of concerns:
+**Frontend** is intentionally dumb. It doesn't touch LangGraph, embeddings, or SQL. It calls the API, renders video cards, and streams SSE tokens to the chat window. That's it.
 
-**Frontend** handles presentation and streaming. It doesn't know about embeddings, LangGraph, or database schemas. It just calls the API and renders SSE events.
+**Backend** owns all the logic — ingestion, chunking, embedding, agent orchestration. A single FastAPI process handles everything. No microservices, no distributed queues, because the problem doesn't need that complexity yet.
 
-**Backend** owns all the intelligence. The FastAPI server orchestrates ingestion, runs the LangGraph agent, and manages state. Everything runs through a single backend process — no microservices overhead for a system at this scale.
+**PostgreSQL** does double duty as both the relational store and the vector store. I didn't want to maintain two separate databases when pgvector handles the vector volume we're dealing with just fine. More on that in the scaling section.
 
-**Database** is PostgreSQL with pgvector, not a separate vector database. This was intentional — I didn't want to manage two persistence layers when pgvector handles the vector volume we're dealing with perfectly well (details in Scaling Strategy below).
+### Provider adapter pattern
 
-### Provider Adapter Pattern
-
-The ingestion layer uses a strategy pattern. Each platform implements `BaseVideoProvider`:
+Every platform implements the same interface:
 
 ```python
 class BaseVideoProvider(ABC):
@@ -80,20 +98,15 @@ class BaseVideoProvider(ABC):
     async def download_audio(self, url: str, output_dir: str) -> str: ...
 ```
 
-`ProviderRegistry.detect(url)` iterates registered providers and returns the first one that can handle the URL. Adding TikTok is literally:
+`ProviderRegistry.detect(url)` picks the right provider based on the URL. Adding TikTok means creating `tiktok.py` and appending it to the registry — nothing else in the codebase changes.
 
-1. Create `tiktok.py` implementing `BaseVideoProvider`
-2. Append `TikTokProvider` to `_PROVIDERS` in `registry.py`
+### LangGraph agent
 
-Zero changes to ingestion, API, or frontend code.
-
-### LangGraph Agent Design
-
-The agent uses a stateful `StateGraph` with intent-based conditional routing:
+The agent uses intent classification to decide what work to actually do:
 
 ```
-START → Intent Detection → Metadata Load → (conditional routing)
-                                              │
+START → Intent Detection → Metadata Load → (routing)
+                                               │
                    ┌──────────────────────────┤
                    │                          │
             metadata_only              transcript_search / comparison / hooks / recommendations
@@ -110,9 +123,7 @@ START → Intent Detection → Metadata Load → (conditional routing)
                            Answer Generator → END
 ```
 
-Every query always loads metadata first. Then the intent classifier decides whether to also search transcripts, run hook analysis, generate comparisons, or produce recommendations. The answer generator has full context from whatever nodes ran before it.
-
-This means a simple "How many views does Video A have?" skips vector retrieval entirely and answers directly from metadata. A complex "Compare the storytelling approaches and suggest improvements" runs retrieval, comparison, and recommendations before generating the final answer.
+"How many views does Video A have?" never touches pgvector — it reads from metadata and answers directly. "Compare the storytelling and suggest what Video B should do differently" runs retrieval, comparison, and recommendations in sequence before generating the answer.
 
 ---
 
@@ -122,7 +133,7 @@ This means a simple "How many views does Video A have?" skips vector retrieval e
 -- Tracks the lifecycle of a two-video analysis
 analysis_sessions (
   id          UUID PRIMARY KEY,
-  status      VARCHAR(20),    -- pending | processing | completed | failed
+  status      VARCHAR(20),    -- pending | processing | completed | partial_success | failed
   error_message TEXT,
   created_at  TIMESTAMPTZ,
   updated_at  TIMESTAMPTZ
@@ -147,20 +158,24 @@ videos (
   thumbnail_url TEXT,
   video_url   TEXT,
   transcript_text TEXT,
+  transcript_status VARCHAR(20), -- pending | completed | failed
+  hook_text   TEXT,
   engagement_rate FLOAT,
   comment_rate FLOAT,
   like_rate   FLOAT,
   engagement_per_follower FLOAT
 )
 
--- Chunked transcript with pgvector embeddings
+-- Chunked transcript with pgvector embeddings and timestamps
 transcript_chunks (
   id          UUID PRIMARY KEY,
   analysis_id UUID REFERENCES analysis_sessions(id),
   video_id    UUID REFERENCES videos(id),
   chunk_number INTEGER,
   chunk_text  TEXT,
-  embedding   VECTOR(384)     -- BAAI/bge-small-en-v1.5
+  embedding   VECTOR(384),    -- BAAI/bge-small-en-v1.5
+  start_time  DOUBLE PRECISION,
+  end_time    DOUBLE PRECISION
 )
 
 -- Chat session grouping
@@ -183,11 +198,11 @@ chat_messages (
 
 ---
 
-## API Documentation
+## API
 
 ### `POST /api/analyze`
 
-Submit two video URLs for comparison.
+Kick off an analysis. Runs async in the background — poll the GET endpoint for status.
 
 **Request:**
 ```json
@@ -208,7 +223,11 @@ Submit two video URLs for comparison.
 
 ### `GET /api/analysis/{id}`
 
-Retrieve analysis results.
+Check analysis status and get results when done.
+
+`status` will be one of: `pending` | `processing` | `completed` | `partial_success` | `failed`
+
+`partial_success` means metadata was extracted but transcripts couldn't be retrieved — usually due to bot detection on the cloud host.
 
 **Response:** `200`
 ```json
@@ -232,7 +251,7 @@ Retrieve analysis results.
 
 ### `POST /api/chat`
 
-Chat with the AI analyst. Returns Server-Sent Events.
+Send a message to the AI analyst. Streams tokens back as Server-Sent Events.
 
 **Request:**
 ```json
@@ -274,12 +293,12 @@ data: {"type": "done", "content": ""}
 |-------|-----------|-----|
 | Frontend | Next.js 15, TypeScript, Tailwind CSS | App Router, SSR, streaming-native |
 | Backend | FastAPI, Python 3.12 | Async-first, type-safe, auto-docs |
-| Agent | LangGraph, LangChain | Stateful graph execution with conditional routing |
-| LLM | Gemini 2.5 Flash | Fast, cost-effective, supports streaming |
-| Embeddings | BAAI/bge-small-en-v1.5 | 384-dim, runs locally, top-tier for its size class |
-| Vector Store | PostgreSQL + pgvector | Single DB for relational + vector data |
-| Transcription | youtube-transcript-api, yt-dlp, faster-whisper | Multi-fallback pipeline |
-| ORM | SQLAlchemy 2.0 (async) | Mature, full-featured async support |
+| Agent | LangGraph, LangChain | Stateful graph with conditional routing |
+| LLM | Gemini 2.5 Flash | Fast, cheap, streams natively |
+| Embeddings | BAAI/bge-small-en-v1.5 | Runs locally — no API costs, no rate limits, 384-dim vectors |
+| Vector Store | PostgreSQL + pgvector | One database instead of two |
+| Transcription | youtube-transcript-api, yt-dlp, AssemblyAI, faster-whisper | Layered fallback — native captions → AssemblyAI → local Whisper tiny |
+| ORM | SQLAlchemy 2.0 (async) | Full async support, no blocking |
 
 ---
 
@@ -289,8 +308,10 @@ data: {"type": "done", "content": ""}
 ```
 DATABASE_URL=postgresql+asyncpg://hookiq:hookiq@localhost:5432/hookiq
 GOOGLE_API_KEY=your-gemini-api-key
+YOUTUBE_API_KEY=your-youtube-data-api-key
+ASSEMBLYAI_API_KEY=your-assemblyai-key
 EMBEDDING_MODEL=BAAI/bge-small-en-v1.5
-WHISPER_MODEL=small
+WHISPER_MODEL=tiny
 CHUNK_SIZE=500
 CHUNK_OVERLAP=100
 CORS_ORIGINS=http://localhost:3000
@@ -303,20 +324,20 @@ NEXT_PUBLIC_API_URL=http://localhost:8023/api
 
 ---
 
-## Setup Instructions
+## Setup
 
 ### Prerequisites
 - Python 3.12+
 - Node.js 18+
 - Docker & Docker Compose
 - FFmpeg (`brew install ffmpeg` on macOS)
-- A Google AI API key (for Gemini 2.5 Flash)
+- A Google AI API key for Gemini
 
-### 1. Clone and setup
+### 1. Clone
 
 ```bash
-git clone https://github.com/youruser/decodr.git
-cd decodr
+git clone https://github.com/AnubhavScripts/Decodr-AI.git
+cd Decodr-AI
 ```
 
 ### 2. Start PostgreSQL
@@ -325,9 +346,9 @@ cd decodr
 docker-compose up -d
 ```
 
-This starts PostgreSQL 16 with pgvector pre-installed on port 5432.
+Starts PostgreSQL 16 with pgvector on port 5435.
 
-### 3. Backend setup
+### 3. Backend
 
 ```bash
 cd backend
@@ -335,33 +356,33 @@ python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
-# Configure environment
 cp .env.example .env
-# Edit .env and set your GOOGLE_API_KEY
+# Fill in your API keys
 
-# Start the server
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8023
 ```
 
-On first startup, the server will:
-- Create the pgvector extension
-- Create all database tables
-- Pre-load the BGE embedding model (~90MB download on first run)
+On first start it creates the pgvector extension, runs migrations, and starts pre-loading the BGE embedding model in the background.
 
-### 4. Frontend setup
+### 4. Frontend
 
 ```bash
 cd frontend
 npm install
 cp .env.example .env.local
 
-# Start dev server
 npm run dev
 ```
 
-### 5. Open the app
+### 5. Go
 
-Navigate to `http://localhost:3000`, paste two video URLs, and hit Analyze.
+Open `http://localhost:3000`, paste two video URLs, hit Analyze.
+
+Or use the one-liner from root:
+
+```bash
+./start_services.sh
+```
 
 ---
 
@@ -374,44 +395,44 @@ cd frontend
 npx vercel --prod
 ```
 
-Set `NEXT_PUBLIC_API_URL` to your Railway backend URL in Vercel environment variables.
+Set `NEXT_PUBLIC_API_URL` to your Railway backend URL.
 
 ### Backend → Railway
 
-1. Connect your GitHub repo to Railway
-2. Set root directory to `backend`
-3. Set start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-4. Add all environment variables from `.env.example`
+1. Connect repo to Railway
+2. Set root directory: `backend`
+3. Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+4. Add environment variables from `.env.example`
 
 ### Database → Supabase
 
 1. Create a Supabase project
-2. Enable the `vector` extension in SQL editor: `CREATE EXTENSION IF NOT EXISTS vector;`
-3. Use the connection string as `DATABASE_URL` in your backend
+2. Run in the SQL editor: `CREATE EXTENSION IF NOT EXISTS vector;`
+3. Set the connection string as `DATABASE_URL`
 
 ---
 
-## Cost Analysis
+## Cost
 
-### Per-analysis cost (two videos)
+### Per analysis (two videos)
 
 | Component | Cost |
 |-----------|------|
 | Gemini 2.5 Flash (intent + analysis) | ~$0.003 |
 | BGE embedding (local) | $0.00 |
-| Whisper transcription (local) | $0.00 |
+| Whisper transcription (local fallback) | $0.00 |
 | Supabase DB (free tier) | $0.00 |
 
-**Total per analysis: ~$0.003** (essentially free for the LLM calls)
+**~$0.003 per full analysis.** Most of that is the LLM.
 
-### Per-chat-message cost
+### Per chat message
 
 | Component | Cost |
 |-----------|------|
-| Gemini 2.5 Flash (2-5 node calls) | ~$0.001-0.004 |
-| BGE embedding (1 query) | $0.00 |
+| Gemini 2.5 Flash (2-5 agent node calls) | ~$0.001-0.004 |
+| BGE embedding (1 query vector) | $0.00 |
 
-### Monthly infrastructure
+### Monthly infra
 
 | Service | Tier | Cost |
 |---------|------|------|
@@ -419,120 +440,88 @@ Set `NEXT_PUBLIC_API_URL` to your Railway backend URL in Vercel environment vari
 | Railway | Starter | ~$5/mo |
 | Supabase | Free | $0 |
 
-**Total: ~$5/mo** + LLM usage (~$3-10/mo at 1000 analyses/month)
+**~$5/mo fixed** + $3-10/mo in LLM usage at 1000 analyses/month.
 
 ---
 
-## Scaling Strategy
+## Scaling
 
-### Current design: PostgreSQL + pgvector
+### Why pgvector instead of a dedicated vector DB
 
-I chose pgvector over a dedicated vector database (Pinecone, Qdrant, Weaviate) because:
+The honest answer is: at this scale, a dedicated vector DB adds complexity without adding much value.
 
-1. **Operational simplicity.** One database for everything. No vector DB to provision, monitor, and pay for separately.
-2. **Transactional consistency.** Chunks are stored in the same transaction as video metadata. No eventual consistency issues.
-3. **Query flexibility.** I can join transcript chunks with video metadata in a single SQL query, filter by analysis_id, and combine vector similarity with relational predicates.
-4. **Scale fit.** At 1000 analyses/day × 2 videos × ~15 chunks each = ~30,000 vectors/day. pgvector with HNSW indexing handles this comfortably up to tens of millions of vectors.
+At 1,000 analyses/day × 2 videos × ~15 chunks = ~30,000 new vectors per day. pgvector with HNSW indexing handles that easily into the tens of millions. The bigger win is keeping everything in one transaction — chunks and metadata either both commit or both roll back. With a separate vector store you'd be managing eventual consistency between two systems.
 
-### When to migrate
-
-If vector volume exceeds ~50M rows or if query latency at the 99th percentile exceeds 100ms, I'd migrate the vector search to Qdrant or Milvus while keeping the relational data in PostgreSQL. The `EmbeddingService.similarity_search` method is the only place that queries vectors, so the migration surface is a single function.
+At roughly 1,000 creators/day, pgvector is the right call. If volume grew to tens of millions of chunks and query latency started degrading, then migrating the vector search to Qdrant makes sense. The switch would be isolated to a single method — `EmbeddingService.similarity_search` is the only place that queries vectors.
 
 ### Horizontal scaling
 
-- **Backend:** FastAPI is async and stateless. Scale horizontally behind a load balancer. The embedding model loads into memory per-process (~170MB), so size instances accordingly.
-- **Database:** Read replicas for analytics queries. Connection pooling via PgBouncer if connection counts become an issue.
-- **Whisper:** The heaviest operation. For high throughput, offload to a GPU-backed worker queue (Celery + Redis) instead of running in the API process.
+- **Backend** is async and stateless, so it scales horizontally fine. The BGE model is ~170MB in RAM per process, so factor that into instance sizing.
+- **Database** — read replicas for analytics, PgBouncer for connection pooling if needed.
+- **Transcription** — AssemblyAI offloads cloud transcription, but the local Whisper fallback is CPU-heavy. At higher throughput that should move to a background worker queue (Celery + Redis) rather than running inline.
 
 ---
 
 ## Engineering Tradeoffs
 
-| Decision | Tradeoff | Why |
+| Decision | What you give up | Why it's worth it |
 |----------|----------|-----|
-| pgvector over Qdrant | Slightly slower ANN at huge scale | Operational simplicity, transactional integrity |
-| BGE-small over OpenAI embeddings | 384-dim vs 1536-dim, slightly less semantic nuance | Runs locally, zero API cost, no rate limits |
-| faster-whisper over OpenAI Whisper API | Requires CPU/GPU on server | No per-minute charges, works offline, data stays local |
-| Background tasks over Celery | No retry/dead-letter queue | Simpler deployment, sufficient for single-server scale |
-| SSE over WebSockets | Unidirectional only | Simpler, HTTP-native, sufficient for streaming text |
-| LangGraph over plain chains | More complexity in graph setup | Conditional routing, state management, extensibility |
+| pgvector over Qdrant | Slightly slower ANN at huge scale | One database, transactional integrity |
+| BGE-small over OpenAI embeddings | 384-dim vs 1536-dim vectors | Zero cost, no rate limits, runs locally |
+| faster-whisper over OpenAI Whisper API | Needs CPU on the server | No per-minute charges, works offline |
+| Background tasks over Celery | No retry queue or dead-letter handling | Much simpler deployment at this scale |
+| SSE over WebSockets | One-way only | HTTP-native, no upgrade handshake needed for text streaming |
+| LangGraph over plain chains | More setup overhead | Clean conditional routing, persistent state |
 
 ---
 
-## Future Enhancements
+## What I'd build next
 
-- **TikTok, LinkedIn, X providers** — just new adapter files
+- **TikTok, LinkedIn, X providers** — each is a new adapter file, nothing else changes
 - **Batch analysis** — compare 5+ videos in a single session
-- **Scheduled monitoring** — track a creator's metrics over time
-- **GPU-accelerated Whisper** — CUDA support for faster transcription
+- **Scheduled monitoring** — weekly snapshots of a creator's performance over time
+- **GPU Whisper** — CUDA support would cut local transcription time dramatically
 - **Multi-language transcripts** — auto-detect language, translate before embedding
-- **Custom embedding fine-tuning** — train domain-specific embeddings on creator content
-- **A/B test predictor** — predict which thumbnail/hook will perform better
-- **Export reports** — PDF/Notion export of analysis results
-- **Team workspaces** — shared analyses with role-based access
-- **Webhook notifications** — notify when analysis completes
+- **A/B hook predictor** — predict which opening will retain more viewers
+- **Export** — PDF or Notion export of the full analysis
+- **Team workspaces** — shared sessions with roles
 
 ---
 
-## Interview Talking Points
+## Interview Notes
 
 **On system design:**
-"I built Decodr.ai as a RAG system with a twist — instead of documents, the retrieval corpus is video transcripts. The LangGraph agent uses intent classification to decide whether a query needs metadata, transcript search, or both, which avoids wasting tokens on unnecessary retrieval."
+"It's a RAG system where the retrieval corpus is video transcripts instead of documents. The LangGraph agent uses intent classification so it doesn't burn tokens on vector search for questions that are just about stats — those get answered straight from metadata."
 
 **On the adapter pattern:**
-"Adding a new platform is a single-file change. The provider registry does URL-based routing, so the ingestion pipeline doesn't know or care what platform it's talking to. I've seen too many systems where adding a new data source requires touching five files."
+"Adding a new platform is one file. The registry routes URLs to providers, and none of the ingestion pipeline knows or cares which platform it's dealing with. I've worked on systems where adding a data source means touching five different files — I didn't want that here."
 
-**On pgvector vs. dedicated vector DBs:**
-"For our vector volume — maybe 50K vectors per day at peak — pgvector with HNSW indexing is more than sufficient. The real win is transactional consistency. When I store chunks and metadata in the same commit, I never have a state where the vector DB has embeddings for chunks that don't exist in the relational store."
+**On pgvector:**
+"At our vector volume — maybe 30-50K vectors a day — pgvector with HNSW is more than enough. The real reason I picked it is transactional consistency. When chunks and metadata are in the same commit, I never have a state where the vector DB has embeddings for records that got rolled back."
 
 **On streaming:**
-"The chat endpoint uses Server-Sent Events with LangGraph's astream_events API. I filter events by node name so the frontend only sees tokens from the answer generator, not internal planning calls. Status updates for each node ('Searching transcripts...') come through as custom events."
+"The chat endpoint uses SSE with LangGraph's `astream_events` API. I filter by node name so the frontend only receives tokens from the answer generator — internal routing calls don't leak through. Each node also emits a status event ('Searching transcripts...') so users know what's happening."
 
 **On the transcript pipeline:**
-"YouTube has a native transcript API that's fast but doesn't always have data. Instagram has nothing. So I built a three-tier fallback: native API → yt-dlp audio download → faster-whisper transcription. The provider abstraction means each platform defines its own fallback chain."
-
----
-
-## Architecture Decisions
-
-1. **Monorepo with separate frontend/backend** — easier to deploy independently (Vercel + Railway) while keeping code colocated
-2. **Async SQLAlchemy** — FastAPI is async-first, so the ORM should be too. Avoids blocking the event loop during DB calls.
-3. **Singleton embedding model** — loaded once at startup, shared across requests. The BGE model is ~170MB in memory, so we don't want to load it per-request.
-4. **Lazy Whisper loading** — only loaded when the first transcription is needed, since many YouTube videos have native transcripts
-5. **UUID primary keys** — avoids sequential ID guessing, makes IDs safe to expose in URLs
-6. **JSON columns for hashtags and citations** — these are variable-length arrays that don't need their own tables at this scale
+"YouTube has native captions but they're not always available. Instagram has nothing. So I built a layered fallback: first try native captions, then download the audio and send it to AssemblyAI, then fall back to running faster-whisper locally with a timeout guard so it doesn't block the event loop indefinitely. If everything fails we mark the session `partial_success` — the user still gets all the engagement data and can chat about stats, they just don't get transcript-based analysis."
 
 ---
 
 ## Production Considerations
 
-- **Rate limiting:** Add FastAPI middleware or use Cloudflare's rate limiting in front of the API
-- **Input sanitization:** URLs are validated but should also be sanitized against SSRF
-- **Secrets management:** Use Railway/Vercel secret management, not .env files in production
-- **Monitoring:** Add structured logging + Sentry for error tracking
-- **Connection pooling:** PgBouncer in front of Supabase for connection management at scale
-- **CDN:** Vercel handles frontend CDN automatically. Consider caching `/analysis/{id}` responses for completed analyses
-- **Data retention:** Implement TTL on analyses to manage storage growth. Audio files are already cleaned up after transcription.
+- **Rate limiting:** FastAPI middleware or Cloudflare in front of the API
+- **Input sanitization:** URLs are validated but should also be checked against SSRF patterns
+- **Secrets:** Use Railway/Vercel secret management in production, not `.env` files
+- **Monitoring:** Structured logging is in place — add Sentry for exception tracking
+- **Connection pooling:** PgBouncer in front of Supabase if connection counts get high
+- **CDN:** Vercel handles frontend automatically. Completed analysis responses are good candidates for edge caching.
+- **Data retention:** Audio files are deleted immediately after transcription. Analysis sessions should have a TTL to manage DB growth.
 
-### YouTube Transcript & Audio Retrieval Limitations
+### YouTube transcript limitations in cloud environments
 
-A practical limitation encountered during deployment is YouTube's anti-bot protection on cloud-hosted environments.
+This is worth flagging explicitly. YouTube's bot detection is aggressive, and most cloud provider IP ranges (Railway, Render, AWS, GCP, Azure) are already flagged. In practice this means:
 
-While transcript extraction and audio downloads generally work during local development, cloud providers such as Render, Railway, AWS, GCP, and Azure frequently use IP ranges that are flagged by YouTube. As a result:
+- `youtube-transcript-api` often returns IP-blocked errors on cloud hosts
+- `yt-dlp` may hit "Sign in to confirm you're not a bot" errors even for public videos
 
-* `youtube-transcript-api` may return IP blocked or request blocked errors.
-* `yt-dlp` may return "Sign in to confirm you're not a bot" errors.
-* Some videos may therefore be unable to provide transcripts even when metadata remains accessible.
-
-To handle this gracefully, Decodr.ai implements a degradation strategy:
-
-1. Attempt native transcript retrieval.
-2. Attempt audio download and transcription fallback.
-3. If transcript retrieval fails entirely, continue processing metadata.
-4. Mark the analysis session as `partial_success`.
-5. Allow metadata-based comparisons and chat functionality to continue operating.
-
-This ensures that creator analytics, engagement calculations, and metadata-driven insights remain available even when transcript retrieval is restricted by platform-level protections.
-
-For authenticated retrieval, optional YouTube cookies can be configured in self-hosted deployments. Cookies are intentionally not bundled with the application and are not required for core functionality.
-
+The fallback pipeline handles this — if both the native API and audio download fail, the session degrades to `partial_success` and everything that doesn't need transcripts still works. For self-hosted deployments where you control the IP, YouTube cookies can be passed to yt-dlp for authenticated access. Cookies aren't bundled with the app.
